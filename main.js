@@ -235,10 +235,8 @@ void main()
 `;
 
 let filter = createFilter(app.screen.width, app.screen.height,snowShader);
-let shinyFilter = createFilter(app.screen.width, app.screen.height,chromaticVibration)
-app.stage.filters = [filter,shinyFilter];
+app.stage.filters = [filter];
 
 app.ticker.add((delta) =>{
   filter.uniforms.iTime += 0.01;
-  shinyFilter.uniforms.iTime += 0.5;
 })
