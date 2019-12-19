@@ -3,16 +3,15 @@ const app = new PIXI.Application({
   height: 745
 });
 document.body.appendChild(app.view);
-// for(let i = 0; i < 10; i++){
-//   const cat = PIXI.Sprite.from('images/cat.png');
-//   cat.x = Math.random() * app.screen.width;
-//   cat.y = Math.random() * app.screen.height;
-//   app.stage.addChild(cat);
-// }
+
+const fullScreen = new PIXI.Sprite();
+fullScreen.width = app.screen.width;
+fullScreen.height = app.screen.height;
+app.stage.addChild(fullScreen);
 
 const cat = PIXI.Sprite.from('images/cat.png');
-cat.width = app.screen.width;
-cat.height = app.screen.height;
+// cat.width = app.screen.width;
+// cat.height = app.screen.height;
 app.stage.addChild(cat);
 
 
@@ -64,7 +63,7 @@ uniform sampler2D uSampler;
 uniform float iTime;
 void main() {
   vec2 r = vTextureCoord;
-  float col = sin(-r.y + r.x/2. - iTime * 5.) * 0.9;
+  float col = sin(-r.y + r.x - iTime * 5.) * 0.9;
   col *= col * col * 0.6;
   col = clamp(col,0.,1.);
   vec4 text = texture2D(uSampler, vTextureCoord);
@@ -97,7 +96,7 @@ void main() {
   gl_FragColor = newCol;
 }`
 
-const silexars2 = `
+const silexars2Shader = `
 precision highp float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -124,7 +123,7 @@ void main() {
 }
 `;
 
-const chromaticVibration =`
+const chromaticVibrationShader =`
 precision mediump float;
 
 varying vec2 vTextureCoord;
@@ -229,7 +228,7 @@ void main()
 
     vec2 r = vec2(1.0, iResolution.y / iResolution.x);
 	  vec2 uv = vTextureCoord;
-    float val = fractalblobnoise(r * uv * 20.0, 5.0);
+    float val = fractalblobnoise(r * uv.xy * -50.0, 5.0);
     gl_FragColor = mix(texture2D(uSampler, uv), vec4(1.0), vec4(val));
 }
 `;
