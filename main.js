@@ -39,6 +39,7 @@ void main(){
   gl_FragColor.rgb  = 1.0 - gl_FragColor.rgb;
 }`
 
+//https://www.shadertoy.com/view/3lBSR3
 const pixelateShader = `
 precision mediump float;
 
@@ -56,6 +57,7 @@ void main(){
   gl_FragColor = texture2D(uSampler, uv);
 }`
 
+//https://www.shadertoy.com/view/XsGBzW
 const shinyShader = `
 precision highp float;
 varying vec2 vTextureCoord;
@@ -96,6 +98,7 @@ void main() {
   gl_FragColor = newCol;
 }`
 
+//https://www.shadertoy.com/view/XsXXDn
 const silexars2Shader = `
 precision highp float;
 varying vec2 vTextureCoord;
@@ -123,6 +126,7 @@ void main() {
 }
 `;
 
+//https://www.shadertoy.com/view/Mds3zn
 const chromaticVibrationShader =`
 precision mediump float;
 
@@ -176,6 +180,7 @@ void main() {
 }
 `;
 
+//https://www.shadertoy.com/view/4l2SW3
 const snowShader = `
 #define pi 3.1415926
 
@@ -232,10 +237,11 @@ void main()
     gl_FragColor = mix(texture2D(uSampler, uv), vec4(1.0), vec4(val));
 }
 `;
-
+let silexarsFilter = createFilter(app.screen.width, app.screen.height,silexars2Shader);
 let filter = createFilter(app.screen.width, app.screen.height,snowShader);
-app.stage.filters = [filter];
+app.stage.filters = [silexarsFilter,filter];
 
-app.ticker.add((delta) =>{
+app.ticker.add((delta) =>{  
+  silexarsFilter.uniforms.iTime += 0.01;
   filter.uniforms.iTime += 0.01;
 })
