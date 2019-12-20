@@ -50,14 +50,14 @@ fullScreen.height = app.screen.height;
 app.stage.addChild(fullScreen);
 
 const cat = PIXI.Sprite.from('images/cat.png');
-// cat.width = app.screen.width;
-// cat.height = app.screen.height;
+cat.width = app.screen.width;
+cat.height = app.screen.height;
 app.stage.addChild(cat);
 
 var filterManager = new Kultie.FilterManager();
-let filter = filterManager.createFilter(app.screen.width,app.screen.height,customShader,{},true,"custom");
 let snowFilter = filterManager.createFilter(app.screen.width,app.screen.height,snowShader,{},true,"snow");
-app.stage.filters = [filter,snowFilter]
+let twistedFilter = filterManager.createFilter(app.screen.width,app.screen.height,twistedShader,{radius:0.5, angle:1},true,"twisted");
+app.stage.filters = [twistedFilter,snowFilter]
 
 app.ticker.add((delta) =>{  
   filterManager.update(0.0167);

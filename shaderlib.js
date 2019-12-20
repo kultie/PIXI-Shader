@@ -87,7 +87,7 @@ void main() {
   col *= col * col * 0.6;
   col = clamp(col,0.,1.);
   vec4 text = texture2D(uSampler, vTextureCoord);
-  gl_FragColor = text + vec4(col) * text.a;
+  gl_FragColor = text * vec4(col);
 }
 `
 
@@ -308,4 +308,49 @@ void main()
 	
 	gl_FragColor = mix(vec4(0.), col, pow(glow*2.,4.));
 }
+`;
+
+const twistedShader =`
+
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec2 iMouse;
+
+uniform float radius;
+uniform float angle;
+
+vec2 twist(vec2 coord)
+{
+    coord -= iMouse;
+
+    float dist = length(coord);
+
+    if (dist < radius)
+    {
+        float ratioDist = (radius - dist) / radius;
+        float angleMod = ratioDist * ratioDist * sin(iTime) * angle;
+        float s = sin(angleMod);
+        float c = cos(angleMod);
+        coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);
+    }
+
+    coord += iMouse;
+
+    return coord;
+}
+
+void main(void)
+{
+
+    vec2 coord = vTextureCoord;
+
+    coord = twist(coord);
+
+    gl_FragColor = texture2D(uSampler, coord );
+
+}
+
 `;
