@@ -1,3 +1,48 @@
+const customShader = `
+precision mediump float;
+
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec2 iMouse;
+
+float plot(vec2 st, float pct){
+  return smoothstep(pct-0.02, pct, st.y) - smoothstep(pct,pct+0.05,st.y);
+}
+
+vec3 rectangle(vec2 st,vec2 pos, float size){
+  vec2 tlPos = pos - size/2.;
+  vec2 brPos = vec2(1.-size) - tlPos;
+  vec2 tl = step(tlPos,st);
+  vec2 br = step(brPos, 1. - st);
+  return vec3(tl.x * tl.y * br.x * br.y);
+}
+
+vec3 circle(vec2 st, vec2 pos, float radius){
+  float pct = 1. - step(radius,distance(st,vec2(pos)));
+
+  return vec3(pct);
+}
+
+void main() {
+  // Screen UVs
+  // vec2 st = gl_FragCoord.xy / iResolution;
+  //Built-in UVs
+  vec2 st = vTextureCoord;
+  vec3 color = vec3(0.);
+  for(float i = 0.0; i < 1.; i+=0.01){
+    vec3 circ = circle(st,(vec2(i, 0.5 + ((sin(iTime * i)))/2.)),0.01);
+    circ *= (vec3(1.0,0.5,0.8));
+    color += circ; 
+  }
+
+  // vec3 color = rectangle(st, vec2(0.25,0.25), 0.5);
+  gl_FragColor = vec4(color,1.);
+}
+`;
+
 const inverseColorShader = `
 precision mediump float;
 
@@ -130,26 +175,6 @@ void main(){
 	  col *= (1.0 - amount * 0.5);
 	
     gl_FragColor = vec4(col,1.0);
-}
-`;
-
-const customShader = `
-
-varying vec2 vTextureCoord;
-uniform sampler2D uSampler;
-
-float random (vec2 st) {
-  return fract(sin(dot(st.xy,
-                       vec2(12.9898,78.233)))*
-      43758.5453123);
-}
-
-void main() {
-  vec2 st = vTextureCoord;
-
-  float rnd = random( st );
-
-  gl_FragColor = vec4(vec3(rnd),1.0);
 }
 `;
 
