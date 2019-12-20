@@ -1,45 +1,5 @@
 var Kultie = Kultie || {}
 
-
-
-Kultie.FilterManager = class {
-  constructor(){
-    this._filterList = {};
-  }
-
-  createFilter(w,h,code,uniforms,include, id){
-    let standardUniform = {
-      iResolution: [w, h],
-      iTime: 0.0,
-      iMouse: [0.0,0.0]
-    }  
-    let shaderUniform = {...standardUniform,...uniforms}; 
-    let filter = new PIXI.Filter(null, code, shaderUniform);
-    if(include){
-      this._filterList[id] = filter;
-    }
-    return filter;
-  }
-
-  update(dt){
-    
-    for(let key in this._filterList){
-      if(this._filterList.hasOwnProperty(key)){
-        let filter = this._filterList[key];
-        filter.uniforms.iTime += dt;
-        filter.uniforms.iMouse = this.convertMousePosition();
-      }
-    }
-  }
-
-  convertMousePosition(){
-    let mousePos = app.renderer.plugins.interaction.mouse.global;
-    let x = mousePos.x / app.screen.width;
-    let y = mousePos.y / app.screen.height;
-    return [x,y]
-  }
-}
-
 const app = new PIXI.Application({
   width: 600,
   height:600
