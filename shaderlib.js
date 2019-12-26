@@ -1,3 +1,48 @@
+const templateShaderCode =`
+precision mediump float;
+const float PI = 3.1415926535;
+
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec2 iMouse;
+
+vec2 translate(vec2 uv, vec2 position){
+    uv += position;
+    return uv;
+}
+
+vec2 rotate(vec2 uv, float angle){
+    float c = cos(angle);
+    float s = sin(angle);
+    mat2 mat = mat2(c,-s,s,c);
+    uv -= vec2(.5);
+    uv *= mat;
+    uv += vec2(.5);
+    return uv;
+}
+
+vec2 scale(vec2 uv, vec2 scale){
+    mat2 mat = mat2(scale.x,.0,.0,scale.y);
+    uv -= vec2(.5);
+    uv *= mat;
+    uv += vec2(.5);
+    return uv;
+}
+
+void main(){
+    //glsl standard uv;
+    vec2 uv = gl_FragCoord.xy/iResolution;
+
+    //PIXI standard uv;
+    uv = vTextureCoord;
+
+    gl_FragColor = vec4(vec3(1.0),1.0);
+}`;
+
+
 const customShader = `
 precision mediump float;
 
@@ -224,6 +269,7 @@ uniform sampler2D uSampler;
 
 uniform vec3 iResolution;
 uniform float iTime;
+uniform vec4 filterArea;
 
 void main()
 {
@@ -242,71 +288,103 @@ precision mediump float;
 
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
+uniform sampler2D noise;
 
 uniform vec3 iResolution;
 uniform float iTime;
 
-float noise(vec3 p)
-{
-	vec3 i = floor(p);
-	vec4 a = dot(i, vec3(1., 57., 21.)) + vec4(0., 57., 21., 78.);
-	vec3 f = cos((p-i)*acos(-1.))*(-.5)+.5;
-	a = mix(sin(cos(a)*a),sin(cos(1.+a)*(1.+a)), f.x);
-	a.xy = mix(a.xz, a.yw, f.y);
-	return mix(a.x, a.y, f.z);
+float norm(float a, float b, float t) {
+	return (t - a) / (b - a);
 }
 
-float sphere(vec3 p, vec4 spr)
-{
-	return length(spr.xyz-p) - spr.w;
+float map(float a, float b, float c, float d, float t) {
+	return norm(a, b, t) * (d-c) + c;
 }
 
-float flame(vec3 p)
-{
-	float d = sphere(p*vec3(1.,.5,1.), vec4(.0,-1.,.0,1.));
-	return d + (noise(p+vec3(.0,iTime*2.,.0)) + noise(p*3.)*.5)*.25*(p.y) ;
+float bar(float t, float s, float e, float blur) {
+    //blur = 0.001; // for testing strips
+    return smoothstep(s-blur, s+blur, t) * smoothstep(e+blur, e-blur, t);
 }
 
-float scene(vec3 p)
-{
-	return min(100.-length(p) , abs(flame(p)) );
+vec3 blurredBar(vec2 uv, vec2 p, vec2 blur, vec3 color) {    
+    float b = map(1.0, -1.0, blur.s, blur.t, uv.t);    
+    b = pow(b, 2.0);
+	return bar(uv.s, p.s, p.t, b) * color;
 }
 
-vec4 raymarch(vec3 org, vec3 dir)
-{
-	float d = 0.0, glow = 0.0, eps = 0.02;
-	vec3  p = org;
-	bool glowed = false;
-	
-	for(int i=0; i<64; i++)
-	{
-		d = scene(p) + eps;
-		p += d * dir;
-		if( d>eps )
-		{
-			if(flame(p) < .0)
-				glowed=true;
-			if(glowed)
-       			glow = float(i)/64.;
-		}
-	}
-	return vec4(p,glow);
+vec3 fire(vec2 uv) {
+    
+    const float maxblur = 1.0;
+    const float minblur = 0.001;
+    const float start = -0.1;
+    const float end = 0.1;
+    
+    float y = uv.y;    
+    float m = sin(y * 10.0 + iTime * 6.0) * 0.01;
+    float x = uv.x - m;
+    
+    vec3 mask = blurredBar(vec2(x, y), vec2(start, end), vec2(maxblur, minblur), vec3(1.0, 1.0, 0.0)) +
+        blurredBar(vec2(x, y), vec2(start-0.1, end+0.1), vec2(maxblur+0.2, minblur-0.2), vec3(1.0, 0.0, 0.0));
+    
+    vec3 fade = vec3(0.5) - y;
+    
+    return mask * fade;
 }
 
-void main()
-{
-	vec2 v = -1.0 + 2.0 * vTextureCoord;
-	v.x *= iResolution.x/iResolution.y;
-	
-	vec3 org = vec3(0., -2., 4.);
-	vec3 dir = normalize(vec3(v.x*1.6, v.y, -1.5));
-	
-	vec4 p = raymarch(org, dir);
-	float glow = p.w;
-	
-	vec4 col = mix(vec4(1.,.5,.1,1.), vec4(0.1,.5,1.,1.), p.y*.02+.4);
-	
-	gl_FragColor = mix(vec4(0.), col, pow(glow*2.,4.));
+vec3 distortion(vec2 uv, vec3 image) {
+	vec2 d = uv.xy;    
+	d.y += iResolution.y * -sin(iTime / 800.0);
+	vec4 c = texture2D(noise, d);
+    
+    // pulse a composite mask
+    float blur = map(-1.0, 1.0, 0.30, 0.5, sin(iTime * 4.0));
+    
+    // make the mask wave as function of uv.y
+    uv.x += sin(uv.y * 10.0 + iTime * 6.0) * 0.01;
+    
+    // shift the mask up a bit
+    uv.y -= 0.5;
+    
+    // taper start and end x components as a function of uv.y and taper attennuation
+    float taper = 0.05;    
+    float mask = bar(uv.x, -5.0 * -uv.y * taper, 5.0 * -uv.y * taper, blur / 5.0);
+    
+    //return vec3(mask); // for testing
+	return mask * (image - vec3(c) * .2);
+}
+
+vec2 translate(vec2 uv, vec2 position){
+  uv += position;
+  return uv;
+}
+
+vec2 rotate(vec2 uv, float angle){
+  float c = cos(angle);
+  float s = sin(angle);
+  mat2 mat = mat2(c,-s,s,c);
+  // uv -= vec2(.5);
+  uv *= mat;
+  // uv += vec2(.5);
+  return uv;
+}
+
+vec2 scale(vec2 uv, vec2 scale){
+  mat2 mat = mat2(scale.x,.0,.0,scale.y);
+  uv -= vec2(.5);
+  uv *= mat;
+  uv += vec2(.5);
+  return uv;
+}
+
+void main() {
+    vec2 uv = 1. - (gl_FragCoord.xy / iResolution.xy);
+    uv -= 0.5;
+    uv.x *= iResolution.x / iResolution.y;
+    uv = scale(uv, vec2(1.,.3));
+    // uv = translate(uv, vec2(-.2,.0));
+    vec4 col = vec4(distortion(uv, fire(uv)), 1.0);
+    col.a = col.r;
+	gl_FragColor = col;
 }
 `;
 
@@ -352,5 +430,66 @@ void main(void)
     gl_FragColor = texture2D(uSampler, coord );
 
 }
-
 `;
+
+const shockwaveShader =`
+precision mediump float;
+const float PI = 3.1415926535;
+
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec2 iMouse;
+
+vec2 translate(vec2 uv, vec2 position){
+    uv += position;
+    return uv;
+}
+
+vec2 rotate(vec2 uv, float angle){
+    float c = cos(angle);
+    float s = sin(angle);
+    mat2 mat = mat2(c,-s,s,c);
+    uv -= vec2(.5);
+    uv *= mat;
+    uv += vec2(.5);
+    return uv;
+}
+
+vec2 scale(vec2 uv, vec2 scale){
+    mat2 mat = mat2(scale.x,.0,.0,scale.y);
+    uv -= vec2(.5);
+    uv *= mat;
+    uv += vec2(.5);
+    return uv;
+}
+
+void main()
+{
+  vec2 uv = gl_FragCoord.xy/iResolution.xx;
+  uv.y = 1. - uv.y;
+  vec2 pos = iMouse;
+  pos.y = 1. - pos.y;
+  pos = pos * iResolution.xy; 
+  
+  float duration = 0.4;
+  float time = mod(iTime, duration);
+  float radius = 5000.* time*time;
+  float thickness_ratio = 0.4;
+  
+  float time_ratio = time/duration;
+   float shockwave = smoothstep(radius, radius-2.0, length(pos - gl_FragCoord.xy));
+  shockwave *= smoothstep((radius-2.)*thickness_ratio, radius-2.0,length(pos - gl_FragCoord.xy));
+  shockwave *= 1.-time_ratio;
+  
+  vec2 disp_dir = normalize(gl_FragCoord.xy-pos);
+  
+  
+  uv += 0.02*disp_dir*shockwave;
+  vec3 col = texture2D(uSampler, uv).rgb;
+  
+  
+  gl_FragColor = vec4(col,1.0);
+}`;

@@ -47,17 +47,23 @@ document.body.appendChild(app.view);
 const fullScreen = new PIXI.Sprite();
 fullScreen.width = app.screen.width;
 fullScreen.height = app.screen.height;
-app.stage.addChild(fullScreen);
+
 
 const cat = PIXI.Sprite.from('images/cat.png');
 cat.width = app.screen.width;
 cat.height = app.screen.height;
+// cat.x = app.screen.width/2;
+// cat.y = app.screen.width/2;
 app.stage.addChild(cat);
 
+const noise = PIXI.Sprite.from('images/noise.png');
+
+cat.addChild(fullScreen);
+
 var filterManager = new Kultie.FilterManager();
-let snowFilter = filterManager.createFilter(app.screen.width,app.screen.height,snowShader,{},true,"snow");
+let snowFilter = filterManager.createFilter(app.screen.width,app.screen.height,shockwaveShader,{},true,"snow");
 let twistedFilter = filterManager.createFilter(app.screen.width,app.screen.height,twistedShader,{radius:0.5, angle:1},true,"twisted");
-app.stage.filters = [twistedFilter,snowFilter]
+app.stage.filters = [snowFilter]
 
 app.ticker.add((delta) =>{  
   filterManager.update(0.0167);
