@@ -12,6 +12,9 @@ uniform sampler2D u_tex1;
 
 const int AMOUNT = 5;
 const float MAGNITUDE = -5.;
+const bool _Distort = true;
+const float _Cutoff = .5;
+const float _Fade = 1.;
 
 float circleShape(vec2 position, float radius){
     return step(radius, length(position - vec2(.5,.5)));
@@ -233,13 +236,38 @@ vec2 rainyRainbow(vec2 st){
     col += drop;
 
     return drop * dropPos + trail * trailPos;
+    //vec4 img = texture2D(u_tex0, st + offSet * MAGNITUDE); off set here for color
+}
+
+vec4 transition(vec2 uv){
+    vec4 transit = texture2D(u_tex1, uv);
+    vec2 direction = vec2(0.);
+    if(_Distort){
+        direction = normalize(vec2((transit.r - .5) * 2. , (transit.g - .5)* 2.));
+    }
+    float cutOff = ((sin(u_time) + 1.) / 2.);
+    vec4 col = texture2D(u_tex0, uv);
+    if(transit.b < cutOff){
+        return col = mix(col, vec4(0.8549, 0.0314, 0.0314, 1.0), _Fade);
+    }
+    return col;
+}
+
+vec4 limitVision(vec2 st, vec2 pos, float radius){
+  pos.x *= u_resolution.x/u_resolution.y;
+  st.x *= u_resolution.x/u_resolution.y;
+  float pct = (1. - smoothstep(0., radius ,distance(st,vec2(pos))));
+
+  return vec4(1./pct);
 }
 
 void main(){
     //glsl standard uv;
     vec2 st = gl_FragCoord.xy / u_resolution.xy;
-    
-    vec4 col = vec4(0.);
-    col += rectangleShape(st,vec2(.5));
-    gl_FragColor = col;
+    vec4 col = limitVision(st, u_mouse/u_resolution.xy, 1.5);
+    vec4 tex = texture2D(u_tex0,st);
+    vec4 result = mix(col,tex,col.a);
+    vec4 tex2 = texture2D(u_tex1,st * col.a);
+    result = mix(tex2,result,col.a);
+    gl_FragColor = result;
 }
