@@ -239,7 +239,7 @@ void main(){
     //glsl standard uv;
     vec2 st = gl_FragCoord.xy / u_resolution.xy;
     
-    vec2 offSet =  rainyRainbow(st);
-    vec4 img = texture2D(u_tex0, st + offSet * MAGNITUDE);
-    gl_FragColor = img;
+    vec4 col = vec4(0.);
+    col += rectangleShape(st,vec2(.5));
+    gl_FragColor = col;
 }

@@ -32,8 +32,8 @@ Kultie.FilterManager = class {
 
   convertMousePosition(){
     let mousePos = app.renderer.plugins.interaction.mouse.global;
-    let x = mousePos.x / app.screen.width;
-    let y = mousePos.y / app.screen.height;
+    let x = mousePos.x;
+    let y = mousePos.y;
     return [x,y]
   }
 }
@@ -60,10 +60,11 @@ const noise = PIXI.Sprite.from('images/noise.png');
 
 cat.addChild(fullScreen);
 
-var filterManager = new Kultie.FilterManager();
+let filterManager = new Kultie.FilterManager();
 let snowFilter = filterManager.createFilter(app.screen.width,app.screen.height,shockwaveShader,{},true,"snow");
 let twistedFilter = filterManager.createFilter(app.screen.width,app.screen.height,twistedShader,{radius:0.5, angle:1},true,"twisted");
-app.stage.filters = [snowFilter]
+let customFilter = filterManager.createFilter(app.screen.width,app.screen.height,limitVisionShader,{uRadius: 1.5},true,"custom");
+app.stage.filters = [customFilter]
 
 app.ticker.add((delta) =>{  
   filterManager.update(0.0167);

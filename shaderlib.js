@@ -65,7 +65,18 @@ vec3 rectangle(vec2 st,vec2 pos, float size){
   return vec3(tl.x * tl.y * br.x * br.y);
 }
 
+vec2 rotate(vec2 uv, float angle){
+  float c = cos(angle);
+  float s = sin(angle);
+  mat2 mat = mat2(c,-s,s,c);
+  uv -= vec2(.5);
+  uv *= mat;
+  uv += vec2(.5);
+  return uv;
+}
+
 vec3 circle(vec2 st, vec2 pos, float radius){
+  st.x *= iResolution.x/iResolution.y;
   float pct = 1. - step(radius,distance(st,vec2(pos)));
 
   return vec3(pct);
@@ -77,13 +88,12 @@ void main() {
   //Built-in UVs
   vec2 st = vTextureCoord;
   vec3 color = vec3(0.);
-  for(float i = 0.0; i < 1.; i+=0.01){
-    vec3 circ = circle(st,(vec2(i, 0.5 + ((sin(iTime * i)))/2.)),0.01);
-    circ *= (vec3(1.0,0.5,0.8));
-    color += circ; 
-  }
+  vec2 res = iResolution;
+  // st = rotate(st, iTime);
+  // res = rotate(res,abs(sin(iTime)));
+  color += circle(st, vec2(.5,.5),.2);
 
-  // vec3 color = rectangle(st, vec2(0.25,0.25), 0.5);
+  // vec3 color = rectangle(st, vec2(0.25,0.25), 0.5 * iResolution.y / iResolution.x);
   gl_FragColor = vec4(color,1.);
 }
 `;
@@ -493,3 +503,64 @@ void main()
   
   gl_FragColor = vec4(col,1.0);
 }`;
+
+const transitionShader=
+`
+precision mediump float;
+const float PI = 3.1415926535;
+
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec2 iMouse;
+uniform vec2 transitionImage;
+
+const float4 color
+
+void main(){
+    //glsl standard uv;
+    vec2 uv = gl_FragCoord.xy/iResolution;
+
+    //PIXI standard uv;
+    uv = vTextureCoord;
+
+    gl_FragColor = vec4(vec3(1.0),1.0);
+}
+`;
+
+const limitVisionShader = `
+
+precision mediump float;
+const float PI = 3.1415926535;
+
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec2 iMouse;
+uniform float uRadius;
+
+vec4 limitVision(vec2 st, vec2 pos, float radius){
+  pos.x *= iResolution.x/iResolution.y;
+  st.x *= iResolution.x/iResolution.y;
+  float pct = (1. - step(radius, distance(st,vec2(pos)))) * (1. - smoothstep(0., radius ,distance(st,vec2(pos))));
+
+  return vec4(1./pct);
+}
+
+void main(){
+    //glsl standard uv;
+    vec2 uv = gl_FragCoord.xy/iResolution;
+
+    //PIXI standard uv;
+    uv = vTextureCoord;
+
+    vec4 col = limitVision(uv, iMouse/iResolution.xy, uRadius);
+    vec4 tex = texture2D(uSampler,uv);
+    vec4 result = mix(col,tex,col.a);
+    gl_FragColor = result;
+}
+`;
