@@ -293,35 +293,99 @@ vec4 normalMap(vec2 uv, sampler2D texture){
     return vec4(norm * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0), 1.0);
 }
 
+vec4 normalMap2(vec2 uv, sampler2D texture){
+    float x=1.;
+	float y=1.;
+	
+	float M =abs(texture2D(texture, uv + vec2(0., 0.)/ u_resolution.xy).r); 
+	float L =abs(texture2D(texture, uv + vec2(x, 0.)/ u_resolution.xy).r);
+	float R =abs(texture2D(texture, uv + vec2(-x, 0.)/ u_resolution.xy).r);	
+	float U =abs(texture2D(texture, uv + vec2(0., y)/ u_resolution.xy).r);
+	float D =abs(texture2D(texture, uv + vec2(0., -y)/ u_resolution.xy).r);
+	float X = ((R-M)+(M-L))*.5;
+	float Y = ((D-M)+(M-U))*.5;
+	
+	float strength =.01;
+	vec4 N = vec4(normalize(vec3(X, Y, strength)), 1.0);
+
+	vec4 col = vec4(N.xyz * 0.5 + 0.5,1.);
+    return col;
+}
+
 vec3 lightSource(vec2 pos, float size){
     return vec3(pos,size);
 }
 
 vec4 lightWNormal(vec2 uv, sampler2D texture){
-    vec3 light = lightSource(u_mouse/u_resolution.xy, 1.);
+    vec3 light = lightSource(u_mouse/u_resolution.yx, .5);
     vec4 color = texture2D(texture,uv);
     float dist = distance(uv, light.xy);
-    vec4 map = normalMap(uv, texture);
+    vec4 map = normalMap2(uv, texture);
     vec3 normalVector = normalize(map.xyz);
     normalVector = texture2D(u_tex1, uv).xyz;
     vec3 lightVector = normalize(vec3(light.x - uv.x, light.y - uv.y, light.z));
-    float diffuse = 2. * max(dot(normalVector, lightVector),0.);
+    float diffuse = 1. * max(dot(normalVector, lightVector),0.);
     vec4 result = step(dist, light.z) * (color * (1. - dist/light.z));
     return result * diffuse;
 }
 
+vec2 twist(vec2 coord, float radius, float angle)
+{
+    coord -= u_mouse/u_resolution.xy;
+
+    float dist = length(coord);
+
+    if (dist < radius)
+    {
+        float ratioDist = (radius - dist) / radius;
+        float angleMod = ratioDist * ratioDist * sin(u_time) * angle;
+        float s = sin(angleMod);
+        float c = cos(angleMod);
+        coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);
+    }
+
+    coord += u_mouse/u_resolution.xy;
+
+    return coord;
+}
+
+vec4 norctunalVision(){
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;    
+    vec4 col = limitVision(st, u_mouse/u_resolution.xy, .5);
+    
+    vec4 tex = texture2D(u_tex0,st);
+    vec4 result = mix(col,tex,col.a);
+    st = twist(st, 1., 2.);
+    vec4 tex2 = texture2D(u_tex1,st);
+    tex2.rgb /= 5.;
+    result = mix(result,tex2,1. - col.a);
+    return result;
+}
+
+vec4 gradientTemplate(vec2 st){
+    vec4 col1 = vec4(1.,0.,0.,1.);
+    vec4 col2 = vec4(0.9255, 0.4706, 0.0471, 1.0);
+    vec4 col3 = vec4(0.9882, 0.8667, 0.1961, 1.0);
+    vec4 col = mix(col1, col2,smoothstep(0., .25, st.y));
+    col = mix(col,col3,smoothstep(0.25, .5, st.y));
+    col = mix(col, vec4(0.8157, 1.0, 0.0, 1.0), smoothstep(0.5, .75, st.y));
+    col = mix(col, vec4(0.5529, 1.0, 0.0392, 1.0),smoothstep(.75, 1., st.y));
+    return col;
+}
+
+
+
 void main(){
     //glsl standard uv;
     vec2 st = gl_FragCoord.xy / u_resolution.xy;    
-    vec4 col = limitVision(st, u_mouse/u_resolution.xy, 1.);
-    vec4 tex = texture2D(u_tex0,st);
-    vec4 result = mix(col,tex,col.a);
-    st -= .5;
-    st *= rotate(u_time/2.);
-    st += .5;
-    vec4 tex2 = texture2D(u_tex1,st);
-    result = mix(result,tex2,1. - col.a);
-    gl_FragColor = result;
+    vec4 col1 = vec4(1.,0.,0.,1.);
+    vec4 col2 = vec4(0.9255, 0.4706, 0.0471, 1.0);
+    vec4 col3 = vec4(0.9882, 0.8667, 0.1961, 1.0);
+    vec4 col = mix(col1, col2,smoothstep(0., .25, st.y));
+    col = mix(col,col3,smoothstep(0.25, .5, st.y));
+    col = mix(col, vec4(0.8157, 1.0, 0.0, 1.0), smoothstep(0.5, .75, st.y));
+    col = mix(col, vec4(0.5529, 1.0, 0.0392, 1.0),smoothstep(.75, 1., st.y));
+    gl_FragColor = col;
 }
 
 ///////

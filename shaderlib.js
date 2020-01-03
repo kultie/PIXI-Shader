@@ -412,7 +412,7 @@ uniform float angle;
 
 vec2 twist(vec2 coord)
 {
-    coord -= iMouse;
+    coord -= iMouse/iResolution.xy;
 
     float dist = length(coord);
 
@@ -425,7 +425,7 @@ vec2 twist(vec2 coord)
         coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);
     }
 
-    coord += iMouse;
+    coord += iMouse/iResolution.xy;
 
     return coord;
 }
