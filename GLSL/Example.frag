@@ -184,8 +184,8 @@ vec3 textureGrayGrain(vec2 uv,vec3 image){
     return image.rgb;
 }
 
-vec2 displacement(vec2 uv, sampler2D src, vec2 disp){   
-    disp = ((disp * 2.) - 1.) * .1 * abs(sin(u_time));
+vec2 displacement(vec2 disp){   
+    disp = ((disp * 2.) - 1.) * 250. * abs(sin(u_time));
     return disp;
 }
 
@@ -256,18 +256,83 @@ vec4 transition(vec2 uv){
 vec4 limitVision(vec2 st, vec2 pos, float radius){
   pos.x *= u_resolution.x/u_resolution.y;
   st.x *= u_resolution.x/u_resolution.y;
-  float pct = (1. - smoothstep(0., radius ,distance(st,vec2(pos))));
+  float pct = (1. - step(radius ,distance(st,vec2(pos))));
+  pct *= (1. - distance(st,pos)/radius);
+  return vec4(pct);
+}
 
-  return vec4(1./pct);
+float lum(vec3 c){
+    return (c.x + c.y + c.z)/3.;
+}
+
+vec4 normalMap(vec2 uv, sampler2D texture){
+    vec2 texelsize = 1./u_resolution.xy;
+    float dx = 0.;
+    float dy = 0.;
+
+    dx -= lum(texture2D(texture, vec2(uv.x - texelsize.x, uv.y - texelsize.y)).rgb) * 1.0;
+	dx -= lum(texture2D(texture, vec2(uv.x - texelsize.x, uv.y              )).rgb) * 2.0;
+	dx -= lum(texture2D(texture, vec2(uv.x - texelsize.x, uv.y + texelsize.y)).rgb) * 1.0;
+	dx += lum(texture2D(texture, vec2(uv.x + texelsize.x, uv.y - texelsize.y)).rgb) * 1.0;
+	dx += lum(texture2D(texture, vec2(uv.x + texelsize.x, uv.y              )).rgb) * 2.0;
+	dx += lum(texture2D(texture, vec2(uv.x + texelsize.x, uv.y + texelsize.y)).rgb) * 1.0;
+    
+    dy -= lum(texture2D(texture, vec2(uv.x - texelsize.x, uv.y - texelsize.y)).rgb) * 1.0;
+	dy -= lum(texture2D(texture, vec2(uv.x              , uv.y - texelsize.y)).rgb) * 2.0;
+	dy -= lum(texture2D(texture, vec2(uv.x + texelsize.x, uv.y - texelsize.y)).rgb) * 1.0;
+	dy += lum(texture2D(texture, vec2(uv.x - texelsize.x, uv.y + texelsize.y)).rgb) * 1.0;
+	dy += lum(texture2D(texture, vec2(uv.x              , uv.y + texelsize.y)).rgb) * 2.0;
+	dy += lum(texture2D(texture, vec2(uv.x + texelsize.x, uv.y + texelsize.y)).rgb) * 1.0;
+    float nx = dx;
+    float ny = dy;
+    
+    vec3 norm = vec3(nx,
+                     ny,
+                    sqrt(1.0 - nx*nx - ny*ny));
+    
+    return vec4(norm * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0), 1.0);
+}
+
+vec3 lightSource(vec2 pos, float size){
+    return vec3(pos,size);
+}
+
+vec4 lightWNormal(vec2 uv, sampler2D texture){
+    vec3 light = lightSource(u_mouse/u_resolution.xy, 1.);
+    vec4 color = texture2D(texture,uv);
+    float dist = distance(uv, light.xy);
+    vec4 map = normalMap(uv, texture);
+    vec3 normalVector = normalize(map.xyz);
+    normalVector = texture2D(u_tex1, uv).xyz;
+    vec3 lightVector = normalize(vec3(light.x - uv.x, light.y - uv.y, light.z));
+    float diffuse = 2. * max(dot(normalVector, lightVector),0.);
+    vec4 result = step(dist, light.z) * (color * (1. - dist/light.z));
+    return result * diffuse;
 }
 
 void main(){
     //glsl standard uv;
-    vec2 st = gl_FragCoord.xy / u_resolution.xy;
-    vec4 col = limitVision(st, u_mouse/u_resolution.xy, 1.5);
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;    
+    vec4 col = limitVision(st, u_mouse/u_resolution.xy, 1.);
     vec4 tex = texture2D(u_tex0,st);
     vec4 result = mix(col,tex,col.a);
-    vec4 tex2 = texture2D(u_tex1,st * col.a);
-    result = mix(tex2,result,col.a);
+    st -= .5;
+    st *= rotate(u_time/2.);
+    st += .5;
+    vec4 tex2 = texture2D(u_tex1,st);
+    result = mix(result,tex2,1. - col.a);
     gl_FragColor = result;
 }
+
+///////
+    // vec2 disp = displacement(texture2D(u_tex1,st).rg);
+    // vec4 col = limitVision(st, u_mouse/u_resolution.xy, 1.5);
+    // vec4 tex = texture2D(u_tex0,st + disp);
+    // vec4 result = mix(col,tex,col.a);
+    // st -= .5;
+    // st *= rotate((sin(u_time)+ 1. /2.));
+    // st += .5;
+    // st = translate(st, u_mouse/u_resolution.xy);
+    // vec4 tex2 = texture2D(u_tex1,st * col.a);
+    // result = mix(tex2,result,col.a);
+///////
