@@ -103,9 +103,7 @@ precision mediump float;
 
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-
-uniform vec3 iResolution;
-uniform float iTime;
+uniform vec4 filterArea;
 
 void main(){
   gl_FragColor = texture2D(uSampler, vTextureCoord);
@@ -540,7 +538,6 @@ uniform sampler2D uSampler;
 uniform sampler2D uMap;
 
 uniform vec4 filterArea;
-uniform vec2 iResolution;
 uniform vec2 iMouse;
 uniform float uRadius;
 

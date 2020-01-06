@@ -18981,7 +18981,6 @@ var FilterManager = function (_WebGLManager) {
 
             shader.uniforms.filterClamp = filterClamp;
         }
-        
         // TODO Cacheing layer..
         for (var i in uniformData) {
             if (uniformData[i].type === 'sampler2D' && uniforms[i] !== 0) {
