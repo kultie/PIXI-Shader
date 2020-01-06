@@ -21,7 +21,7 @@ const noise = PIXI.Sprite.from('images/noise.png');
 
 cat.addChild(fullScreen);
 
-const asdasd = new Kultie.Filters.LimitVision();
+const asdasd = new Kultie.Filters.Inverse();
 app.stage.filters = [asdasd];
 app.ticker.add((delta) =>{ 
   asdasd.update(1/60);

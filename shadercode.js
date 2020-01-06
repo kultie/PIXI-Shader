@@ -104,10 +104,11 @@ precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec4 filterArea;
+uniform float iTime;
 
 void main(){
   gl_FragColor = texture2D(uSampler, vTextureCoord);
-  gl_FragColor.rgb  = 1.0 - gl_FragColor.rgb;
+  gl_FragColor.rgb  = 1.0 * sin(iTime) - gl_FragColor.rgb;
 }`
 
 //https://www.shadertoy.com/view/3lBSR3
@@ -275,7 +276,6 @@ float fractalblobnoise(vec2 v, float s)
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 
-uniform vec3 iResolution;
 uniform float iTime;
 uniform vec4 filterArea;
 
@@ -283,8 +283,8 @@ void main()
 {
     T = iTime;
 
-    vec2 r = vec2(1.0, iResolution.y / iResolution.x);
-	  vec2 uv = vTextureCoord;
+    vec2 r = vec2(1.0, 1.);
+	vec2 uv = vTextureCoord;
     float val = fractalblobnoise(r * uv.yx * 50.0, 5.0);
     gl_FragColor = mix(texture2D(uSampler, uv), vec4(1.0), vec4(val));
 }
@@ -564,7 +564,7 @@ const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 
-uniform vec2 iResolution;
+uniform vec4 filterArea;
 uniform float iTime;
 uniform vec2 iMouse;
 
@@ -626,8 +626,8 @@ vec4 layer(vec2 uv, float blur){
 }
 
 vec4 overTheMoon(){
-    vec2 uv = (gl_FragCoord.xy - .5 * iResolution.xy)/ iResolution.y;
-    vec2 M = (iMouse.xy/iResolution.xy) * 2. - 1.;
+    vec2 uv = (gl_FragCoord.xy - .5 * filterArea.xy)/ filterArea.y;
+    vec2 M = (iMouse.xy/filterArea.xy) * 2. - 1.;
     float t = iTime * .3;
     float blur = .005;
 
@@ -695,7 +695,7 @@ float fractalblobnoise(vec2 v, float s)
 }
 
 vec4 snow(vec2 uv){
-    vec2 r = vec2(1., iResolution.y / iResolution.x);
+    vec2 r = vec2(1., filterArea.y / filterArea.x);
     float val = fractalblobnoise(r * uv.xy * 5.,10.);
     return vec4(val);
 }
