@@ -2,6 +2,8 @@
 precision mediump float;
 #endif
 
+#define pi 3.1415926
+
 
 uniform vec2 u_resolution;
 uniform float u_time;
@@ -11,7 +13,7 @@ uniform sampler2D u_tex0;
 uniform sampler2D u_tex1;
 
 const int AMOUNT = 5;
-const float MAGNITUDE = -5.;
+const float MAGNITUDE = -2.;
 const bool _Distort = true;
 const float _Cutoff = .5;
 const float _Fade = 1.;
@@ -184,8 +186,8 @@ vec3 textureGrayGrain(vec2 uv,vec3 image){
     return image.rgb;
 }
 
-vec2 displacement(vec2 disp){   
-    disp = ((disp * 2.) - 1.) * 250. * abs(sin(u_time));
+vec2 displacement(vec2 disp, float strength){   
+    disp = ((disp * 2.) - 1.) * strength * (sin(u_time) + 1.) / 2.;
     return disp;
 }
 
@@ -338,7 +340,7 @@ vec2 twist(vec2 coord, float radius, float angle)
     if (dist < radius)
     {
         float ratioDist = (radius - dist) / radius;
-        float angleMod = ratioDist * ratioDist * sin(u_time) * angle;
+        float angleMod = ratioDist * ratioDist * angle;
         float s = sin(angleMod);
         float c = cos(angleMod);
         coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);
@@ -373,19 +375,152 @@ vec4 gradientTemplate(vec2 st){
     return col;
 }
 
+/// Over the mooooooooon
+
+float Hash21(vec2 p){
+    p = fract(p * vec2(234.45, 765.34));
+    p += dot(p, p + 547.123);
+    return fract(p.x * p.y);
+}
+
+float tapperBox(vec2 p, float wb, float wt, float yb, float yt, float blur){
+    float m = smoothstep(-blur,blur,p.y - yb);
+    m *= smoothstep(blur,-blur,p.y - yt);
+    p.x = abs(p.x);
+    // 0 p.y = yb, 1 p.y = yt;
+    float w = mix(wb,wt,(p.y-yb) / (yt-yb));
+    m *= smoothstep(blur, -blur, p.x-w);
+    return m;
+}
+
+vec4 tree(vec2 uv ,vec3 col,float blur){
+    float m = tapperBox(uv,.03,.03,-.05,.25, blur); //trunk
+    m += tapperBox(uv,.2,.1,.25,.5,blur);
+    m += tapperBox(uv,.15,.05,.5,.75,blur);
+    m += tapperBox(uv,.1,.0,.75,1.,blur);
+
+    float shadow = tapperBox(uv - vec2(.2,0.),.1,.5,.15,.25,blur);
+    shadow += tapperBox(uv + vec2(0.25,0.),.1,.5,.45,.5,blur);
+    shadow += tapperBox(uv - vec2(0.25,0.),.1,.5,.7,.75,blur);
+
+    col -= shadow * .8;
+    return vec4(col,m);
+}
+
+float getHeight(float x){
+    return sin(x * .4213) + sin(x) * .3;
+}
+
+vec4 layer(vec2 uv, float blur){
+    vec4 col = vec4(0.);
+
+    float id = floor(uv.x);
+    float n = fract(sin(id * 234.12) * 5463.3) * 2. - 1.;
+    float x = n * 0.3;
+    float y = getHeight(uv.x);
+
+    float ground = smoothstep(blur, -blur, uv.y + y);
+    col += ground;
+
+    y = getHeight(id + .5 + x);
+    uv.x = fract(uv.x) - .5;
+
+    vec4 tree = tree((uv - vec2(x,-y)) * vec2(1,1. + n * .2),vec3(1), blur);   
+
+    col = mix(col,tree,tree.a);
+    col.a = max(ground,tree.a); 
+    return col;
+}
+
+vec4 overTheMoon(){
+    vec2 uv = (gl_FragCoord.xy - .5 * u_resolution.xy)/ u_resolution.y;
+    vec2 M = (u_mouse.xy/u_resolution.xy) * 2. - 1.;
+    float t = u_time * .3;
+    float blur = .005;
+
+    vec4 col = vec4(0.);
+
+    float stars = Hash21(uv);
+    float twinkle = dot(length(sin(uv + t)), length(cos(uv*vec2(22.,6.7) - t * 3.)));
+    twinkle = sin(twinkle * 10.) * .5 + .5;
+    col += pow(stars,100.) * twinkle;
+
+    float moon = smoothstep(.01, -.01, length(uv - vec2(.5, .2)) - .15);
+    col *= 1. - moon;
+    moon *= smoothstep(-.01, .1, length(uv - vec2(.6, .25)) - .15);
+    col += moon;
+
+    vec4 layers;
+    for(float i = 0.; i < 1.; i += 1./5.){
+        float scale = mix(30.,1., i);
+        blur = mix (.1,.005,i);
+        layers = layer(uv * scale + vec2( t + i * 100.,i) - M,blur);
+        layers.rgb *= (1. - i) * vec3(.9,.9,1.);
+        col = mix(col,layers,layers.a);
+    }
+    layers = layer(uv + vec2(t,1.) - M, .02);
+    col = mix(col, layers * .1, layers.a);
+    return col;
+}
+
+
+//Over the moon end here
+
+//Snow shaderrrr
+vec2 hash( vec2 p ) { p=vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))); return fract(sin(p)*18.5453); }
+
+float simplegridnoise(vec2 v)
+{
+    float s = 1. / 256.;
+    vec2 fl = floor(v), fr = fract(v);
+    float mindist = 1e9;
+    for(int y = -1; y <= 1; y++)
+        for(int x = -1; x <= 1; x++)
+        {
+            vec2 offset = vec2(x, y);
+            vec2 pos = .5 + .5 * cos(2. * pi * (u_time*.1 + hash(fl+offset)) + vec2(0,1.6));
+            mindist = min(mindist, length(pos+offset -fr));
+        }
+    
+    return mindist;
+}
+
+float blobnoise(vec2 v, float s)
+{
+    return pow(.5 + .5 * cos(pi * clamp(simplegridnoise(v)*2., 0., 1.)), s);
+}
+
+float fractalblobnoise(vec2 v, float s)
+{
+    float val = 0.;
+    const float n = 4.;
+    for(float i = 0.; i < n; i++)
+        //val += 1.0 / (i + 1.0) * blobnoise((i + 1.0) * v + vec2(0.0, iTime * 1.0), s);
+    	val += pow(0.5, i+1.) * blobnoise(exp2(i) * v + vec2(0, u_time), s);
+
+    return val;
+}
+
+vec4 snow(){
+    vec2 r = vec2(1., u_resolution.y / u_resolution.x);
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    float val = fractalblobnoise(r * uv.xy * 5.,10.);
+    return vec4(val);
+}
+
+// Snow end here
 
 
 void main(){
     //glsl standard uv;
-    vec2 st = gl_FragCoord.xy / u_resolution.xy;    
-    vec4 col1 = vec4(1.,0.,0.,1.);
-    vec4 col2 = vec4(0.9255, 0.4706, 0.0471, 1.0);
-    vec4 col3 = vec4(0.9882, 0.8667, 0.1961, 1.0);
-    vec4 col = mix(col1, col2,smoothstep(0., .25, st.y));
-    col = mix(col,col3,smoothstep(0.25, .5, st.y));
-    col = mix(col, vec4(0.8157, 1.0, 0.0, 1.0), smoothstep(0.5, .75, st.y));
-    col = mix(col, vec4(0.5529, 1.0, 0.0392, 1.0),smoothstep(.75, 1., st.y));
-    gl_FragColor = col;
+    // vec2 st = gl_FragCoord.xy / u_resolution.xy;    
+    // vec2 uv = twist(st,.5, 1.);
+    // vec2 disp = rainyRainbow(st);
+    // vec4 result = texture2D(u_tex0, uv + disp);
+    // vec4 img = texture2D(u_tex0, st + disp * MAGNITUDE);
+    vec4 moon = overTheMoon();
+    vec4 s = snow();
+    gl_FragColor = moon + s;
 }
 
 ///////

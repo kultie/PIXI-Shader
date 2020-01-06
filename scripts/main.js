@@ -63,8 +63,8 @@ cat.addChild(fullScreen);
 let filterManager = new Kultie.FilterManager();
 let snowFilter = filterManager.createFilter(app.screen.width,app.screen.height,shockwaveShader,{},true,"snow");
 let twistedFilter = filterManager.createFilter(app.screen.width,app.screen.height,twistedShader,{radius:0.5, angle:5},true,"twisted");
-let customFilter = filterManager.createFilter(app.screen.width,app.screen.height,limitVisionShader,{uRadius: 1.5},true,"custom");
-app.stage.filters = [twistedFilter]
+let customFilter = filterManager.createFilter(app.screen.width,app.screen.height,limitVisionShader,{uRadius: .5},true,"custom");
+app.stage.filters = [customFilter]
 
 app.ticker.add((delta) =>{  
   filterManager.update(0.0167);

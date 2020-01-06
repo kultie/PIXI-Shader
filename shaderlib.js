@@ -537,6 +537,7 @@ const float PI = 3.1415926535;
 
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
+uniform sampler2D noise;
 
 uniform vec2 iResolution;
 uniform float iTime;
