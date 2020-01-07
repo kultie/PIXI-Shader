@@ -495,7 +495,7 @@ float fractalblobnoise(vec2 v, float s)
     float val = 0.;
     const float n = 4.;
     for(float i = 0.; i < n; i++)
-        //val += 1.0 / (i + 1.0) * blobnoise((i + 1.0) * v + vec2(0.0, iTime * 1.0), s);
+        //val += 1.0 / (i + 1.0) * blobnoise((i + 1.0) * v + vec2(0.0, uTime * 1.0), s);
     	val += pow(0.5, i+1.) * blobnoise(exp2(i) * v + vec2(0, u_time), s);
 
     return val;

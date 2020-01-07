@@ -19306,7 +19306,6 @@ var FilterManager = function (_WebGLManager) {
     FilterManager.prototype.syncUniforms = function syncUniforms(shader, filter) {
         var uniformData = filter.uniformData;
         var uniforms = filter.uniforms;
-
         // 0 is reserved for the PixiJS texture so we start at 1!
         var textureCount = 1;
         var currentState = void 0;
@@ -19340,7 +19339,7 @@ var FilterManager = function (_WebGLManager) {
         }
 
         // TODO Cacheing layer..
-        for (var i in uniformData) {
+        for (var i in uniformData) {        
             var type = uniformData[i].type;
 
             if (type === 'sampler2d' && uniforms[i] !== 0) {

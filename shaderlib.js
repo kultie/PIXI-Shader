@@ -3,8 +3,8 @@ const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec2 iResolution;
-uniform float iTime;
-uniform vec2 iMouse;
+uniform float uTime;
+uniform vec2 uPosition;
 vec2 translate(vec2 uv, vec2 position){
     uv += position;
     return uv;
@@ -38,8 +38,8 @@ const customShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec2 iResolution;
-uniform float iTime;
-uniform vec2 iMouse;
+uniform float uTime;
+uniform vec2 uPosition;
 float plot(vec2 st, float pct){
   return smoothstep(pct-0.02, pct, st.y) - smoothstep(pct,pct+0.05,st.y);
 }
@@ -71,8 +71,8 @@ void main() {
   vec2 st = vTextureCoord;
   vec3 color = vec3(0.);
   vec2 res = iResolution;
-  // st = rotate(st, iTime);
-  // res = rotate(res,abs(sin(iTime)));
+  // st = rotate(st, uTime);
+  // res = rotate(res,abs(sin(uTime)));
   color += circle(st, vec2(.5,.5),.2);
   // vec3 color = rectangle(st, vec2(0.25,0.25), 0.5 * iResolution.y / iResolution.x);
   gl_FragColor = vec4(color,1.);
@@ -83,7 +83,7 @@ const inverseColorShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec3 iResolution;
-uniform float iTime;
+uniform float uTime;
 void main(){
   gl_FragColor = texture2D(uSampler, vTextureCoord);
   gl_FragColor.rgb  = 1.0 - gl_FragColor.rgb;
@@ -94,7 +94,7 @@ const pixelateShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec3 iResolution;
-uniform float iTime;
+uniform float uTime;
 uniform float amount;
 void main(){
   vec2 uv = vTextureCoord;
@@ -107,10 +107,10 @@ void main(){
 const shinyShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform float iTime;
+uniform float uTime;
 void main() {
   vec2 r = vTextureCoord;
-  float col = sin(-r.y + r.x - iTime * 5.) * 0.9;
+  float col = sin(-r.y + r.x - uTime * 5.) * 0.9;
   col *= col * col * 0.6;
   col = clamp(col,0.,1.);
   vec4 text = texture2D(uSampler, r);
@@ -122,7 +122,7 @@ const silexarsShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec3 iResolution;
-uniform float iTime;
+uniform float uTime;
 void main() {
   vec2 uv = vTextureCoord;
   vec3 wave_color = vec3(0.0);
@@ -130,9 +130,9 @@ void main() {
   uv = -3. + 2. * uv;
   uv.y += 0.;
   for(float i = 0.; i <= 28.; i++){
-    uv.y += (0.2+(0.9*sin(iTime*0.4) * sin(uv.x + i/3.0 + 3.0 *iTime )));
-    uv.x += 1.7* sin(iTime*0.4);
-    wave_width = abs(1.0 / (200.0*abs(cos(iTime)) * uv.y));
+    uv.y += (0.2+(0.9*sin(uTime*0.4) * sin(uv.x + i/3.0 + 3.0 *uTime )));
+    uv.x += 1.7* sin(uTime*0.4);
+    wave_width = abs(1.0 / (200.0*abs(cos(uTime)) * uv.y));
     wave_color += vec3(wave_width *( 0.4+((i+1.0)/18.0)), wave_width * (i / 9.0), wave_width * ((i+1.0)/ 8.0) * 1.9);
   }
   vec4 newCol = vec4(wave_color,1.);
@@ -146,10 +146,10 @@ varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec4 filterArea;
 uniform vec2 dimensions;
-uniform float iTime;
+uniform float uTime;
 void main() {
   vec3 c;
-	float l,z=iTime;
+	float l,z=uTime;
 	for(int i=0;i<3;i++) {
     vec2 uv,p=vTextureCoord * filterArea.xy/dimensions;
 		uv=p;
@@ -159,7 +159,7 @@ void main() {
 		uv+=p/l*(sin(z)+1.)*abs(sin(l*9.-z*2.));
 		c[i]=.01/length(abs(mod(uv,1.)-.5));
 	}
-  vec4 newCol =vec4(c/l,iTime);
+  vec4 newCol =vec4(c/l,uTime);
   vec4 text = texture2D(uSampler, vTextureCoord);
   gl_FragColor = newCol;
 }
@@ -171,15 +171,15 @@ precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec3 iResolution;
-uniform float iTime;
+uniform float uTime;
 void main(){
   vec2 uv = vTextureCoord;
 	float amount = 0.0;
 	
-	amount = (1.0 + sin(iTime*6.0)) * 0.5;
-	amount *= 1.0 + sin(iTime*16.0) * 0.5;
-	amount *= 1.0 + sin(iTime*19.0) * 0.5;
-	amount *= 1.0 + sin(iTime*27.0) * 0.5;
+	amount = (1.0 + sin(uTime*6.0)) * 0.5;
+	amount *= 1.0 + sin(uTime*16.0) * 0.5;
+	amount *= 1.0 + sin(uTime*19.0) * 0.5;
+	amount *= 1.0 + sin(uTime*27.0) * 0.5;
 	amount = pow(amount, 3.0);
 	amount *= 0.05;
 	
@@ -223,17 +223,17 @@ float fractalblobnoise(vec2 v, float s)
     float val = 0.;
     const float n = 4.;
     for(float i = 0.; i < n; i++)
-        //val += 1.0 / (i + 1.0) * blobnoise((i + 1.0) * v + vec2(0.0, iTime * 1.0), s);
+        //val += 1.0 / (i + 1.0) * blobnoise((i + 1.0) * v + vec2(0.0, uTime * 1.0), s);
     	val += pow(0.5, i+1.) * blobnoise(exp2(i) * v + vec2(0, T), s);
     return val;
 }
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform float iTime;
+uniform float uTime;
 uniform vec4 filterArea;
 void main()
 {
-    T = iTime;
+    T = uTime;
     vec2 r = vec2(1.0, filterArea.y / filterArea.x);
 	  vec2 uv = vTextureCoord;
     float val = fractalblobnoise(r * uv.yx * 50.0, 5.0);
@@ -247,7 +247,7 @@ varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform sampler2D noise;
 uniform vec3 iResolution;
-uniform float iTime;
+uniform float uTime;
 float norm(float a, float b, float t) {
 	return (t - a) / (b - a);
 }
@@ -271,7 +271,7 @@ vec3 fire(vec2 uv) {
     const float end = 0.1;
     
     float y = uv.y;    
-    float m = sin(y * 10.0 + iTime * 6.0) * 0.01;
+    float m = sin(y * 10.0 + uTime * 6.0) * 0.01;
     float x = uv.x - m;
     
     vec3 mask = blurredBar(vec2(x, y), vec2(start, end), vec2(maxblur, minblur), vec3(1.0, 1.0, 0.0)) +
@@ -283,14 +283,14 @@ vec3 fire(vec2 uv) {
 }
 vec3 distortion(vec2 uv, vec3 image) {
 	vec2 d = uv.xy;    
-	d.y += iResolution.y * -sin(iTime / 800.0);
+	d.y += iResolution.y * -sin(uTime / 800.0);
 	vec4 c = texture2D(noise, d);
     
     // pulse a composite mask
-    float blur = map(-1.0, 1.0, 0.30, 0.5, sin(iTime * 4.0));
+    float blur = map(-1.0, 1.0, 0.30, 0.5, sin(uTime * 4.0));
     
     // make the mask wave as function of uv.y
-    uv.x += sin(uv.y * 10.0 + iTime * 6.0) * 0.01;
+    uv.x += sin(uv.y * 10.0 + uTime * 6.0) * 0.01;
     
     // shift the mask up a bit
     uv.y -= 0.5;
@@ -338,23 +338,23 @@ const twistedShader =`
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec4 filterArea;
-uniform float iTime;
-uniform vec2 iMouse;
-uniform float radius;
-uniform float angle;
+uniform float uTime;
+uniform vec2 uPosition;
+uniform float uRadius;
+uniform float uAngle;
 vec2 twist(vec2 coord)
 {
-    coord -= iMouse/filterArea.xy;
+    coord -= uPosition/filterArea.xy;
     float dist = length(coord);
-    if (dist < radius)
+    if (dist < uRadius)
     {
-        float ratioDist = (radius - dist) / radius;
-        float angleMod = ratioDist * ratioDist * sin(iTime) * angle;
+        float ratioDist = (uRadius - dist) / uRadius;
+        float angleMod = ratioDist * ratioDist * sin(uTime) * uAngle;
         float s = sin(angleMod);
         float c = cos(angleMod);
         coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);
     }
-    coord += iMouse/filterArea.xy;
+    coord += uPosition/filterArea.xy;
     return coord;
 }
 void main(void)
@@ -370,8 +370,8 @@ const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 
-uniform float iTime;
-uniform vec2 iMouse;
+uniform float uTime;
+uniform vec2 uPosition;
 
 uniform vec4 filterArea;
 uniform vec4 filterClamp;
@@ -379,10 +379,10 @@ uniform vec4 filterClamp;
 void main()
 {
   vec2 uv = vTextureCoord;
-  vec2 pos = iMouse;
+  vec2 pos = uPosition;
   
   float duration = 5.;
-  float time = mod(iTime, duration);
+  float time = mod(uTime, duration);
   float radius = 100.* time;
   float thickness_ratio = 0.4;
   
@@ -412,8 +412,8 @@ const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec2 iResolution;
-uniform float iTime;
-uniform vec2 iMouse;
+uniform float uTime;
+uniform vec2 uPosition;
 uniform vec2 transitionImage;
 const float4 color
 void main(){
@@ -430,7 +430,7 @@ varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec4 filterArea;
 
-uniform vec2 iMouse;
+uniform vec2 uPosition;
 uniform float uRadius;
 
 vec4 limitVision(vec2 st, vec2 pos, float radius){
@@ -440,7 +440,7 @@ vec4 limitVision(vec2 st, vec2 pos, float radius){
 void main(){
     //PIXI standard uv;
     vec2 uv = vTextureCoord;
-    vec4 col = limitVision(uv, vec2(iMouse/filterArea.xy), uRadius);
+    vec4 col = limitVision(uv, vec2(uPosition/filterArea.xy), uRadius);
     vec4 tex = texture2D(uSampler,uv);
     vec4 result = mix(col,tex,col.a);
     gl_FragColor = result;
@@ -452,10 +452,10 @@ varying vec2 vTextureCoord;
 
 uniform sampler2D uSampler;
 uniform sampler2D mapSampler;
-uniform float iTime;
+uniform float uTime;
 
 vec2 displacement(vec2 disp, float strength){   
-  disp = ((disp * 2.) - 1.) * strength * (sin(iTime) + 1.) / 2.;
+  disp = ((disp * 2.) - 1.) * strength * (sin(uTime) + 1.) / 2.;
   return disp;
 }
 

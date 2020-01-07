@@ -1,39 +1,33 @@
 var Kultie = Kultie || {}
+Kultie.FilterSystem = Kultie.FilterSystem || {}
+Kultie.FilterSystem.FilterBase = class extends PIXI.Filter{
+  constructor(code, timeBase, uniforms){
+    super(null,code,uniforms);
 
-Kultie.FilterManager = class {
-  constructor(){
-    this._filterList = {};
-  }
+    if(timeBase){
+      this._timeBase = true;
+      this.uniforms.uTime = 0.0;
+    }    
 
-  createFilter(w,h,code,uniforms,include, id){
-    let standardUniform = {
-      iResolution: [w, h],
-      iTime: 0.0,
-      iMouse: [0.0,0.0]
-    }  
-    let shaderUniform = {...standardUniform,...uniforms}; 
-    let filter = new PIXI.Filter(null, code, shaderUniform);
-    filter.uniforms.iResolution = [w,h];
-    filter.uniforms.iTime = 0.0;
-    filter.uniforms.iMouse = [0.0,0.0];
-    if(include){
-      this._filterList[id] = filter;
+    if(uniforms){
+        for(var key in uniforms){
+          this.uniforms[key] = uniforms[key];
+        }
     }
-    return filter;
   }
 
   update(dt){
-
-    for(let key in this._filterList){
-      if(this._filterList.hasOwnProperty(key)){
-        let filter = this._filterList[key];
-        filter.uniforms.iTime += dt;
-        filter.uniforms.iMouse = this.convertMousePosition();
-      }
+    if(this._timeBase){
+      this.uniforms.uTime += dt;
     }
   }
+    
+  applyDimension(input){
+    this.uniforms.dimensions[0] = input.sourceFrame.width
+    this.uniforms.dimensions[1] = input.sourceFrame.height
+  }
 
-  convertMousePosition(){
+  getMousePosition(){
     let mousePos = app.renderer.plugins.interaction.mouse.global;
     let x = mousePos.x;
     let y = mousePos.y;
@@ -41,9 +35,96 @@ Kultie.FilterManager = class {
   }
 }
 
+Kultie.FilterSystem.SnowFilter = class extends Kultie.FilterSystem.FilterBase{
+  constructor(){
+    super(snowShader,true);
+  }
+
+  update(dt){
+    super.update(dt);
+  }
+}
+
+Kultie.FilterSystem.TwistedFilter = class extends Kultie.FilterSystem.FilterBase{
+  constructor(){
+    super(twistedShader,true,{
+      uPosition: [0.,0.],
+      uRadius: .2,
+      uAngle: 1.,
+      uTime: 0.
+    })
+  }
+
+  update(dt){
+    super.update(dt);
+    this.uniforms.uPosition = this.getMousePosition();
+  }
+}
+
+Kultie.FilterSystem.LimitVisionFilter = class extends Kultie.FilterSystem.FilterBase{
+  constructor(){
+    super(limitVisionShader,false,{
+      uPosition: [0.,0.],
+      uRadius: .2,
+    })
+  }
+
+  update(dt){
+    super.update(dt);
+  }
+}
+
+Kultie.FilterSystem.ShinyFilter = class extends Kultie.FilterSystem.FilterBase{
+  constructor(){
+    super(shinyShader,true);
+  } 
+
+  update(dt){
+    super.update(dt);
+  }
+}
+
+Kultie.FilterSystem.ShockWave = class extends Kultie.FilterSystem.FilterBase{
+  constructor(position){
+    super(shockwaveShader,true,{
+      uPosition: position
+    })
+  }
+
+  update(dt){
+    super.update(dt);
+  }
+}
+
+Kultie.FilterSystem.NorctunalVision = class extends Kultie.FilterSystem.FilterBase{
+  constructor(sprite, radius){
+    const maskMatrix = new PIXI.Matrix();
+    sprite.renderable = false;
+    super(nocturnalVision, true);
+
+    this.maskSprite = sprite;
+    this.maskMatrix = maskMatrix;
+    sprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+    this.uniforms.mapSampler = sprite.texture;
+    this.uniforms.filterMatrix = maskMatrix;
+    this.uniforms.uPosition = [0,0];
+    this.uniforms.uRadius = radius;
+  }
+
+  apply(filterManager, input, output){
+    this.applyDimension(input);
+    this.uniforms.filterMatrix = filterManager.calculateSpriteMatrix(this.maskMatrix,this.maskSprite);
+    filterManager.applyFilter(this,input,output);
+  }
+
+  update(dt){
+    super.update(dt);
+  }
+}
+
 const app = new PIXI.Application({
-  width: 1024,
-  height: 1024
+  width: 600,
+  height: 600
 });
 document.body.appendChild(app.view);
 
@@ -53,8 +134,8 @@ fullScreen.height = app.screen.height;
 
 
 const cat = PIXI.Sprite.from('images/cat.png');
-cat.width = app.screen.width;
-cat.height = app.screen.height;
+// cat.width = app.screen.width;
+// cat.height = app.screen.height;
 // cat.x = app.screen.width/2;
 // cat.y = app.screen.width/2;
 app.stage.addChild(cat);
@@ -63,14 +144,9 @@ const noise = PIXI.Sprite.from('images/noise.png');
 
 cat.addChild(fullScreen);
 
-let filterManager = new Kultie.FilterManager();
-let snowFilter = filterManager.createFilter(app.screen.width,app.screen.height,shockwaveShader,{},true,"snow");
-let twistedFilter = filterManager.createFilter(app.screen.width,app.screen.height,twistedShader,{radius:0.5, angle:5},true,"twisted");
-let customFilter = filterManager.createFilter(app.screen.width,app.screen.height,limitVisionShader,{uRadius: .5},true,"custom");
-customFilter.uniforms.uRadius = .5;
-customFilter.uniforms.noise = noise.texture;
+let customFilter = new Kultie.FilterSystem.SnowFilter();
 app.stage.filters = [customFilter]
 
 app.ticker.add((delta) =>{  
-  filterManager.update(0.0167);
+    customFilter.update(0.0167);
 })
