@@ -1,5 +1,4 @@
 const templateShaderCode =`
-precision mediump float;
 const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -36,7 +35,6 @@ void main(){
 
 
 const customShader = `
-precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec2 iResolution;
@@ -82,7 +80,6 @@ void main() {
 `;
 
 const inverseColorShader = `
-precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec3 iResolution;
@@ -94,7 +91,6 @@ void main(){
 
 //https://www.shadertoy.com/view/3lBSR3
 const pixelateShader = `
-precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec3 iResolution;
@@ -109,7 +105,6 @@ void main(){
 
 //https://www.shadertoy.com/view/XsGBzW
 const shinyShader = `
-precision highp float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform float iTime;
@@ -118,13 +113,12 @@ void main() {
   float col = sin(-r.y + r.x - iTime * 5.) * 0.9;
   col *= col * col * 0.6;
   col = clamp(col,0.,1.);
-  vec4 text = texture2D(uSampler, vTextureCoord);
-  gl_FragColor = text * vec4(col);
+  vec4 text = texture2D(uSampler, r);
+  gl_FragColor = text + vec4(col);
 }
 `
 
 const silexarsShader = `
-precision highp float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform vec3 iResolution;
@@ -148,19 +142,18 @@ void main() {
 
 //https://www.shadertoy.com/view/XsXXDn
 const silexars2Shader = `
-precision highp float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec3 iResolution;
+uniform vec4 filterArea;
+uniform vec2 dimensions;
 uniform float iTime;
 void main() {
   vec3 c;
 	float l,z=iTime;
 	for(int i=0;i<3;i++) {
-		vec2 uv,p=vTextureCoord;
+    vec2 uv,p=vTextureCoord * filterArea.xy/dimensions;
 		uv=p;
-		p-=.5;
-		p.x*=iResolution.x/iResolution.y;
+		p-=vec2(.5,.5)˜ n ;
 		z+=.07;
 		l=length(p);
 		uv+=p/l*(sin(z)+1.)*abs(sin(l*9.-z*2.));
@@ -236,13 +229,12 @@ float fractalblobnoise(vec2 v, float s)
 }
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec3 iResolution;
 uniform float iTime;
 uniform vec4 filterArea;
 void main()
 {
     T = iTime;
-    vec2 r = vec2(1.0, iResolution.y / iResolution.x);
+    vec2 r = vec2(1.0, filterArea.y / filterArea.x);
 	  vec2 uv = vTextureCoord;
     float val = fractalblobnoise(r * uv.yx * 50.0, 5.0);
     gl_FragColor = mix(texture2D(uSampler, uv), vec4(1.0), vec4(val));
@@ -251,7 +243,6 @@ void main()
 
 //https://www.shadertoy.com/view/MdX3zr
 const flameShader = `
-precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform sampler2D noise;
@@ -346,14 +337,14 @@ void main() {
 const twistedShader =`
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec2 iResolution;
+uniform vec4 filterArea;
 uniform float iTime;
 uniform vec2 iMouse;
 uniform float radius;
 uniform float angle;
 vec2 twist(vec2 coord)
 {
-    coord -= iMouse/iResolution.xy;
+    coord -= iMouse/filterArea.xy;
     float dist = length(coord);
     if (dist < radius)
     {
@@ -363,7 +354,7 @@ vec2 twist(vec2 coord)
         float c = cos(angleMod);
         coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);
     }
-    coord += iMouse/iResolution.xy;
+    coord += iMouse/filterArea.xy;
     return coord;
 }
 void main(void)
@@ -375,55 +366,40 @@ void main(void)
 `;
 
 const shockwaveShader =`
-precision mediump float;
 const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec2 iResolution;
+
 uniform float iTime;
 uniform vec2 iMouse;
-vec2 translate(vec2 uv, vec2 position){
-    uv += position;
-    return uv;
-}
-vec2 rotate(vec2 uv, float angle){
-    float c = cos(angle);
-    float s = sin(angle);
-    mat2 mat = mat2(c,-s,s,c);
-    uv -= vec2(.5);
-    uv *= mat;
-    uv += vec2(.5);
-    return uv;
-}
-vec2 scale(vec2 uv, vec2 scale){
-    mat2 mat = mat2(scale.x,.0,.0,scale.y);
-    uv -= vec2(.5);
-    uv *= mat;
-    uv += vec2(.5);
-    return uv;
-}
+
+uniform vec4 filterArea;
+uniform vec4 filterClamp;
+
 void main()
 {
-  vec2 uv = gl_FragCoord.xy/iResolution.xx;
-  uv.y = 1. - uv.y;
+  vec2 uv = vTextureCoord;
   vec2 pos = iMouse;
-  pos.y = 1. - pos.y;
-  pos = pos * iResolution.xy; 
   
-  float duration = 0.4;
+  float duration = 5.;
   float time = mod(iTime, duration);
-  float radius = 5000.* time*time;
+  float radius = 100.* time;
   float thickness_ratio = 0.4;
   
   float time_ratio = time/duration;
-   float shockwave = smoothstep(radius, radius-2.0, length(pos - gl_FragCoord.xy));
-  shockwave *= smoothstep((radius-2.)*thickness_ratio, radius-2.0,length(pos - gl_FragCoord.xy));
+  vec2 st = uv * filterArea.xy;
+  float shockwave = smoothstep(radius, radius-2.0, length(pos - st));
+  shockwave *= smoothstep((radius-2.)*thickness_ratio, radius-2.0,length(pos - st));
   shockwave *= 1.-time_ratio;
   
-  vec2 disp_dir = normalize(gl_FragCoord.xy-pos);
+  vec2 disp_dir = normalize((st * filterArea.xy)-pos);
   
   
   uv += 0.02*disp_dir*shockwave;
+
+  vec2 unmappedCoord = uv / filterArea.xy;
+  vec2 clampedCoord = clamp(unmappedCoord, filterClamp.xy, filterClamp.zw);
+
   vec3 col = texture2D(uSampler, uv).rgb;
   
   
@@ -432,7 +408,6 @@ void main()
 
 const transitionShader=
 `
-precision mediump float;
 const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -451,32 +426,87 @@ void main(){
 `;
 
 const limitVisionShader = `
-precision mediump float;
-const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform sampler2D noise;
 uniform vec4 filterArea;
 
-uniform vec2 iResolution;
-uniform float iTime;
 uniform vec2 iMouse;
 uniform float uRadius;
 
 vec4 limitVision(vec2 st, vec2 pos, float radius){
-  pos.x *= iResolution.x/iResolution.y;
-  st.x *= iResolution.x/iResolution.y;
   float pct = (1. - step(radius, distance(st,vec2(pos)))) * (1. - smoothstep(0., radius ,distance(st,vec2(pos))));
   return vec4(1./pct);
 }
 void main(){
-    //glsl standard uv;
-    vec2 uv = gl_FragCoord.xy/iResolution;
     //PIXI standard uv;
-    uv = vTextureCoord;
+    vec2 uv = vTextureCoord;
     vec4 col = limitVision(uv, vec2(iMouse/filterArea.xy), uRadius);
-    vec4 tex = texture2D(noise,uv);
+    vec4 tex = texture2D(uSampler,uv);
     vec4 result = mix(col,tex,col.a);
     gl_FragColor = result;
 }
 `;
+
+const displacementShader = `
+varying vec2 vTextureCoord;
+
+uniform sampler2D uSampler;
+uniform sampler2D mapSampler;
+uniform float iTime;
+
+vec2 displacement(vec2 disp, float strength){   
+  disp = ((disp * 2.) - 1.) * strength * (sin(iTime) + 1.) / 2.;
+  return disp;
+}
+
+void main(){
+  vec4 disp = texture2D(mapSampler, vTextureCoord);
+  gl_FragColor = texture2D(uSampler,vTextureCoord + displacement(disp.xy, 0.05));
+}
+`
+
+const nocturnalVision = `
+varying vec2 vTextureCoord;
+
+uniform sampler2D uSampler;
+uniform sampler2D mapSampler;
+
+uniform vec4 filterArea;
+uniform vec4 filterClamp;
+
+uniform vec2 dimensions;
+
+uniform float uTime;
+uniform vec2 uPosition;
+uniform float uRadius;
+
+mat2 rotate(float angle){
+  return mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+}
+
+vec2 translate(vec2 uv, vec2 value){
+  uv += value;
+  return uv;
+}
+
+vec4 limitVision(vec2 st, vec2 pos, float radius){
+  float pct = (1. - step(radius ,distance(st,vec2(pos))));
+  pct *= (1. - distance(st,pos)/radius);
+  return vec4(1. - pct);
+}
+
+void main(){
+  vec2 st = vTextureCoord;
+  vec4 col = limitVision(st, uPosition/filterArea.xy, uRadius);
+  vec4 tex = texture2D(uSampler,st);
+  vec4 result = mix(col,tex,col.a);
+  st *= filterArea.xy/dimensions;
+  st -= .5;
+  st *= rotate(-uTime/15.);
+  st += .5;
+  vec4 tex2 = texture2D(mapSampler,(st)* col.a);
+  tex2/=5.;
+  result = mix(tex,tex2,col.a);
+  gl_FragColor = result;
+}
+`

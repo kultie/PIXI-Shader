@@ -19321,7 +19321,6 @@ var FilterManager = function (_WebGLManager) {
             filterArea[1] = currentState.renderTarget.size.height;
             filterArea[2] = currentState.sourceFrame.x;
             filterArea[3] = currentState.sourceFrame.y;
-
             shader.uniforms.filterArea = filterArea;
         }
 
