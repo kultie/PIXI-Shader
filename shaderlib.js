@@ -456,10 +456,13 @@ const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform sampler2D noise;
+uniform vec4 filterArea;
+
 uniform vec2 iResolution;
 uniform float iTime;
 uniform vec2 iMouse;
 uniform float uRadius;
+
 vec4 limitVision(vec2 st, vec2 pos, float radius){
   pos.x *= iResolution.x/iResolution.y;
   st.x *= iResolution.x/iResolution.y;
@@ -471,8 +474,8 @@ void main(){
     vec2 uv = gl_FragCoord.xy/iResolution;
     //PIXI standard uv;
     uv = vTextureCoord;
-    vec4 col = limitVision(uv, iMouse/iResolution.xy, uRadius);
-    vec4 tex = texture2D(uSampler,uv);
+    vec4 col = limitVision(uv, vec2(iMouse/filterArea.xy), uRadius);
+    vec4 tex = texture2D(noise,uv);
     vec4 result = mix(col,tex,col.a);
     gl_FragColor = result;
 }

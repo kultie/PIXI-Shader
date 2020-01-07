@@ -13,6 +13,9 @@ Kultie.FilterManager = class {
     }  
     let shaderUniform = {...standardUniform,...uniforms}; 
     let filter = new PIXI.Filter(null, code, shaderUniform);
+    filter.uniforms.iResolution = [w,h];
+    filter.uniforms.iTime = 0.0;
+    filter.uniforms.iMouse = [0.0,0.0];
     if(include){
       this._filterList[id] = filter;
     }
@@ -39,8 +42,8 @@ Kultie.FilterManager = class {
 }
 
 const app = new PIXI.Application({
-  width: 600,
-  height:600
+  width: 1024,
+  height: 1024
 });
 document.body.appendChild(app.view);
 
@@ -64,6 +67,8 @@ let filterManager = new Kultie.FilterManager();
 let snowFilter = filterManager.createFilter(app.screen.width,app.screen.height,shockwaveShader,{},true,"snow");
 let twistedFilter = filterManager.createFilter(app.screen.width,app.screen.height,twistedShader,{radius:0.5, angle:5},true,"twisted");
 let customFilter = filterManager.createFilter(app.screen.width,app.screen.height,limitVisionShader,{uRadius: .5},true,"custom");
+customFilter.uniforms.uRadius = .5;
+customFilter.uniforms.noise = noise.texture;
 app.stage.filters = [customFilter]
 
 app.ticker.add((delta) =>{  

@@ -19312,8 +19312,6 @@ var FilterManager = function (_WebGLManager) {
         var currentState = void 0;
         // filterArea and filterClamp that are handled by FilterManager directly
         // they must not appear in uniformData
-        console.log(shader.uniforms);
-        throw new Error();
         if (shader.uniforms.filterArea) {
             currentState = this.filterData.stack[this.filterData.index];
 
@@ -19323,6 +19321,7 @@ var FilterManager = function (_WebGLManager) {
             filterArea[1] = currentState.renderTarget.size.height;
             filterArea[2] = currentState.sourceFrame.x;
             filterArea[3] = currentState.sourceFrame.y;
+
             shader.uniforms.filterArea = filterArea;
         }
 
