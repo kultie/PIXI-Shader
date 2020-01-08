@@ -121,7 +121,6 @@ void main() {
 const silexarsShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec3 iResolution;
 uniform float uTime;
 void main() {
   vec2 uv = vTextureCoord;
@@ -144,16 +143,14 @@ void main() {
 const silexars2Shader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec4 filterArea;
-uniform vec2 dimensions;
 uniform float uTime;
 void main() {
   vec3 c;
 	float l,z=uTime;
 	for(int i=0;i<3;i++) {
-    vec2 uv,p=vTextureCoord * filterArea.xy/dimensions;
+    vec2 uv,p=vTextureCoord;
 		uv=p;
-		p-=vec2(.5,.5)˜ n ;
+		p-=vec2(.5,.5);
 		z+=.07;
 		l=length(p);
 		uv+=p/l*(sin(z)+1.)*abs(sin(l*9.-z*2.));
@@ -170,7 +167,6 @@ const chromaticVibrationShader =`
 precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec3 iResolution;
 uniform float uTime;
 void main(){
   vec2 uv = vTextureCoord;
@@ -337,14 +333,14 @@ void main() {
 const twistedShader =`
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec4 filterArea;
+
 uniform float uTime;
 uniform vec2 uPosition;
 uniform float uRadius;
 uniform float uAngle;
 vec2 twist(vec2 coord)
 {
-    coord -= uPosition/filterArea.xy;
+    coord -= uPosition;
     float dist = length(coord);
     if (dist < uRadius)
     {
@@ -354,7 +350,7 @@ vec2 twist(vec2 coord)
         float c = cos(angleMod);
         coord = vec2(coord.x * c - coord.y * s, coord.x * s + coord.y * c);
     }
-    coord += uPosition/filterArea.xy;
+    coord += uPosition;
     return coord;
 }
 void main(void)
@@ -379,7 +375,7 @@ uniform vec4 filterClamp;
 void main()
 {
   vec2 uv = vTextureCoord;
-  vec2 pos = uPosition;
+  vec2 pos = uPosition * filterArea.xy;
   
   float duration = 5.;
   float time = mod(uTime, duration);
@@ -392,13 +388,10 @@ void main()
   shockwave *= smoothstep((radius-2.)*thickness_ratio, radius-2.0,length(pos - st));
   shockwave *= 1.-time_ratio;
   
-  vec2 disp_dir = normalize((st * filterArea.xy)-pos);
+  vec2 disp_dir = normalize(st-pos);
   
   
   uv += 0.02*disp_dir*shockwave;
-
-  vec2 unmappedCoord = uv / filterArea.xy;
-  vec2 clampedCoord = clamp(unmappedCoord, filterClamp.xy, filterClamp.zw);
 
   vec3 col = texture2D(uSampler, uv).rgb;
   
@@ -417,8 +410,6 @@ uniform vec2 uPosition;
 uniform vec2 transitionImage;
 const float4 color
 void main(){
-    //glsl standard uv;
-    vec2 uv = gl_FragCoord.xy/iResolution;
     //PIXI standard uv;
     uv = vTextureCoord;
     gl_FragColor = vec4(vec3(1.0),1.0);
@@ -428,7 +419,6 @@ void main(){
 const limitVisionShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
-uniform vec4 filterArea;
 
 uniform vec2 uPosition;
 uniform float uRadius;
@@ -440,7 +430,7 @@ vec4 limitVision(vec2 st, vec2 pos, float radius){
 void main(){
     //PIXI standard uv;
     vec2 uv = vTextureCoord;
-    vec4 col = limitVision(uv, vec2(uPosition/filterArea.xy), uRadius);
+    vec4 col = limitVision(uv, vec2(uPosition), uRadius);
     vec4 tex = texture2D(uSampler,uv);
     vec4 result = mix(col,tex,col.a);
     gl_FragColor = result;
@@ -471,11 +461,6 @@ varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 uniform sampler2D mapSampler;
 
-uniform vec4 filterArea;
-uniform vec4 filterClamp;
-
-uniform vec2 dimensions;
-
 uniform float uTime;
 uniform vec2 uPosition;
 uniform float uRadius;
@@ -497,10 +482,9 @@ vec4 limitVision(vec2 st, vec2 pos, float radius){
 
 void main(){
   vec2 st = vTextureCoord;
-  vec4 col = limitVision(st, uPosition/filterArea.xy, uRadius);
+  vec4 col = limitVision(st, uPosition, uRadius);
   vec4 tex = texture2D(uSampler,st);
-  vec4 result = mix(col,tex,col.a);
-  st *= filterArea.xy/dimensions;
+  vec4 result = mix(col,tex,col.a);  
   st -= .5;
   st *= rotate(-uTime/15.);
   st += .5;
@@ -508,5 +492,144 @@ void main(){
   tex2/=5.;
   result = mix(tex,tex2,col.a);
   gl_FragColor = result;
+}
+`
+
+const rayMarching = `
+varying vec2 vTextureCoord;
+
+#define MAX_STEPS 100
+#define MAX_DIST 1000.
+#define SURF_DIST .01
+
+uniform sampler2D uSampler;
+
+uniform float uTime;
+uniform vec2 uPosition;
+uniform vec4 filterArea;
+
+float sdCapsule(vec3 p, vec3 a, vec3 b, float r){
+  vec3 ab = b - a;
+  vec3 ap = p-a;
+  
+  float t = dot(ab, ap) / dot(ab,ab);
+  t = clamp(t, 0., 1.);
+
+  vec3 c = a + t * ab;
+  float d = length(p - c) - r;
+  return d;
+}
+
+float sdCylinder(vec3 p, vec3 a, vec3 b, float r){
+  vec3 ab = b - a;
+  vec3 ap = p-a;
+  
+  float t = dot(ab, ap) / dot(ab,ab);
+
+  vec3 c = a + t * ab;
+  float x = length(p-c) - r;
+  float y = (abs(t - .5) - .5) * length(ab);
+  float e = length(max(vec2(x,y), 0.));
+  float i = min(max(x,y), 0.);
+  return e + i;
+}
+
+float sdTorus(vec3 p, vec2 r){
+  float x = length(p.xz) - r.x;
+  return length(vec2(x,p.y)) - r.y;
+}
+
+float sdBox(vec3 p, vec3 s){
+  return length(max(abs(p) - s, 0.));
+}
+
+float GetDist(vec3 p){
+  vec4 s = vec4(3.,1.,6.,1.);
+  float sphereDist = length(p - s.xyz) - s.w;
+  float planeDist = p.y;
+  float cd = sdCapsule(p, vec3(0.,1.,6.), vec3(0.,2.,6.), .5);
+  float td = sdTorus(p - vec3(0.,.5,6.),vec2(1.5,.5));
+  float tb = sdBox(p - vec3(-2., .5,2. * (sin(uTime) + 1.)), vec3(0.5,.5 * (cos(uTime) + 3.)/2.,.5));
+  float cyld = sdCylinder(p, vec3(1.,.5,3.), vec3(3.,.5,5.), .5);
+  float d = min (cd, planeDist);
+  d = min(d,td);
+  d = min(d, sphereDist);
+  d = min(d,tb);
+  d = min (d, cyld);
+  return d;
+}
+
+vec3 GetNormal(vec3 p){
+  float d = GetDist(p);
+  vec2 e = vec2(.01, 0.);
+  vec3 n = d - vec3(GetDist(p - e.xyy), GetDist(p - e.yxy), GetDist(p - e.yyx));
+  return normalize(n);
+}
+
+float RayMarch(vec3 ro, vec3 rd){
+  float dO = 0.;
+
+  for(int i = 0; i < MAX_STEPS; i++){
+    vec3 p = ro + rd * dO;
+    float dS = GetDist(p);
+    dO += dS;
+    if(dO > MAX_DIST || dS < SURF_DIST){
+      break;
+    }
+  }
+
+  return dO;
+}
+
+float GetLight(vec3 p){
+  vec3 lightPos = vec3(0.,5.,6.);
+
+  lightPos.xz += vec2(sin(uTime), cos(uTime)) * 2.;
+
+  vec3 l = normalize(lightPos - p);
+  vec3 n = GetNormal(p);
+  float dif = clamp(dot(n, l),0.,1.);
+  
+  float d = RayMarch(p + n * SURF_DIST * 2.,l);
+  if(d < length(lightPos - p)){
+    dif *= .1;
+  }
+
+  return dif;
+}
+
+mat2 Rot(float a) {
+  float s = sin(a);
+  float c = cos(a);
+  return mat2(c, -s, s, c);
+}
+
+vec3 R(vec2 uv, vec3 p, vec3 l, float z) {
+  vec3 f = normalize(l-p),
+      r = normalize(cross(vec3(0,1,0), f)),
+      u = cross(f,r),
+      c = p+f*z,
+      i = c + uv.x*r + uv.y*u,
+      d = normalize(i-p);
+  return d;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - .5 * filterArea.xy)/filterArea.y;
+  
+  vec3 col = vec3(0.);
+  vec4 result = texture2D(uSampler, vTextureCoord);
+  vec3 ro = vec3(0, 4, -5);
+  ro.yz *= Rot(-uPosition.y + .4);
+  ro.xz *= Rot(-uPosition.x * 6.2831);
+  vec3 rd = R(uv, ro, vec3(0,0,0), .7);
+
+  float d = RayMarch(ro,rd);
+  vec3 p = ro + rd * d;
+
+  float dif = GetLight(p);
+  col = vec3(dif);
+  
+  gl_FragColor = vec4(col,1.);
 }
 `

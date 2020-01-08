@@ -1,14 +1,8 @@
 var Kultie = Kultie || {}
 Kultie.FilterSystem = Kultie.FilterSystem || {}
 Kultie.FilterSystem.FilterBase = class extends PIXI.Filter{
-  constructor(code, timeBase, uniforms){
+  constructor(code,uniforms){
     super(null,code,uniforms);
-
-    if(timeBase){
-      this._timeBase = true;
-      this.uniforms.uTime = 0.0;
-    }    
-
     if(uniforms){
         for(var key in uniforms){
           this.uniforms[key] = uniforms[key];
@@ -17,9 +11,14 @@ Kultie.FilterSystem.FilterBase = class extends PIXI.Filter{
   }
 
   update(dt){
-    if(this._timeBase){
+    if(this.uniforms.uTime !== null){
       this.uniforms.uTime += dt;
     }
+    this.internalUpdate(dt);
+  }
+
+  internalUpdate(dt){
+
   }
     
   applyDimension(input){
@@ -31,17 +30,23 @@ Kultie.FilterSystem.FilterBase = class extends PIXI.Filter{
     let mousePos = app.renderer.plugins.interaction.mouse.global;
     let x = mousePos.x;
     let y = mousePos.y;
-    return [x,y]
+    return [x/app.screen.width,y/app.screen.height]
+  }
+}
+
+Kultie.FilterSystem.Silxar = class extends Kultie.FilterSystem.FilterBase{
+  constructor(){
+    super(silexarsShader, {
+      uTime: 0.
+    });
   }
 }
 
 Kultie.FilterSystem.SnowFilter = class extends Kultie.FilterSystem.FilterBase{
   constructor(){
-    super(snowShader,true);
-  }
-
-  update(dt){
-    super.update(dt);
+    super(snowShader,{
+      uTime: 0.
+    });
   }
 }
 
@@ -55,8 +60,7 @@ Kultie.FilterSystem.TwistedFilter = class extends Kultie.FilterSystem.FilterBase
     })
   }
 
-  update(dt){
-    super.update(dt);
+  internalUpdate(dt){
     this.uniforms.uPosition = this.getMousePosition();
   }
 }
@@ -69,8 +73,9 @@ Kultie.FilterSystem.LimitVisionFilter = class extends Kultie.FilterSystem.Filter
     })
   }
 
-  update(dt){
-    super.update(dt);
+  internalUpdate(dt){
+    this.uniforms.uPosition = this.getMousePosition();
+    this.uniforms.uRadius = this.getMousePosition()[0];
   }
 }
 
@@ -79,20 +84,20 @@ Kultie.FilterSystem.ShinyFilter = class extends Kultie.FilterSystem.FilterBase{
     super(shinyShader,true);
   } 
 
-  update(dt){
-    super.update(dt);
+  internalUpdate(dt){
   }
 }
 
 Kultie.FilterSystem.ShockWave = class extends Kultie.FilterSystem.FilterBase{
-  constructor(position){
+  constructor(){
     super(shockwaveShader,true,{
-      uPosition: position
+      uPosition: [0.,0.],
+      uTime: 0.
     })
   }
 
-  update(dt){
-    super.update(dt);
+  internalUpdate(dt){
+    this.uniforms.uPosition = this.getMousePosition();
   }
 }
 
@@ -100,7 +105,7 @@ Kultie.FilterSystem.NorctunalVision = class extends Kultie.FilterSystem.FilterBa
   constructor(sprite, radius){
     const maskMatrix = new PIXI.Matrix();
     sprite.renderable = false;
-    super(nocturnalVision, true);
+    super(nocturnalVision);
 
     this.maskSprite = sprite;
     this.maskMatrix = maskMatrix;
@@ -108,17 +113,31 @@ Kultie.FilterSystem.NorctunalVision = class extends Kultie.FilterSystem.FilterBa
     this.uniforms.mapSampler = sprite.texture;
     this.uniforms.filterMatrix = maskMatrix;
     this.uniforms.uPosition = [0,0];
-    this.uniforms.uRadius = radius;
+    this.uniforms.uRadius = radius; 
+    this.uniforms.uTime = 0.;   
   }
 
   apply(filterManager, input, output){
-    this.applyDimension(input);
     this.uniforms.filterMatrix = filterManager.calculateSpriteMatrix(this.maskMatrix,this.maskSprite);
     filterManager.applyFilter(this,input,output);
   }
 
-  update(dt){
-    super.update(dt);
+  internalUpdate(dt){
+    this.uniforms.uPosition = this.getMousePosition();
+    this.uniforms.uRadius = Math.sin(this.uniforms.uTime);
+  }
+}
+
+Kultie.FilterSystem.RayMarching = class extends Kultie.FilterSystem.FilterBase{
+  constructor(){
+    super(rayMarching,{
+      uTime: 0.,
+      uPosition: [0.,0.]
+    });
+  }
+
+  internalUpdate(dt){
+    this.uniforms.uPosition = this.getMousePosition();
   }
 }
 
@@ -133,19 +152,19 @@ fullScreen.width = app.screen.width;
 fullScreen.height = app.screen.height;
 
 
-const cat = PIXI.Sprite.from('images/cat.png');
-// cat.width = app.screen.width;
-// cat.height = app.screen.height;
+const scary = PIXI.Sprite.from('images/cat.png');
+scary.width = app.screen.width;
+scary.height = app.screen.height;
 // cat.x = app.screen.width/2;
 // cat.y = app.screen.width/2;
-app.stage.addChild(cat);
+app.stage.addChild(scary);
+scary.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT
 
 const noise = PIXI.Sprite.from('images/noise.png');
 
-cat.addChild(fullScreen);
-
-let customFilter = new Kultie.FilterSystem.SnowFilter();
-app.stage.filters = [customFilter]
+let customFilter = new Kultie.FilterSystem.RayMarching();
+app.stage.filterArea = app.renderer.screen;
+app.stage.filters = [customFilter];
 
 app.ticker.add((delta) =>{  
     customFilter.update(0.0167);
