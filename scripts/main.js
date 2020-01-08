@@ -130,7 +130,7 @@ Kultie.FilterSystem.NorctunalVision = class extends Kultie.FilterSystem.FilterBa
 
 Kultie.FilterSystem.RayMarching = class extends Kultie.FilterSystem.FilterBase{
   constructor(){
-    super(rayMarching,{
+    super(rayTracing2D,{
       uTime: 0.,
       uPosition: [0.,0.]
     });

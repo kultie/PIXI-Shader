@@ -633,3 +633,87 @@ void main(){
   gl_FragColor = vec4(col,1.);
 }
 `
+
+const rayTracing2D = `
+  varying vec2 vTextureCoord;
+
+  #define MAX_STEPS 100
+  #define MAX_DIST 1.
+  #define SURF_DIST .0001
+
+  uniform sampler2D uSampler;
+
+  uniform float uTime;
+  uniform vec2 uPosition;
+  uniform vec4 filterArea;
+
+  float Circle(vec2 p, vec2 pos, float r){
+    return max(length(p - pos) - r,0.);
+  }
+
+  float drawCirlce(vec2 p, vec2 pos, float r){
+    return step(r, length(p - pos));
+  }
+
+  float GetDist(vec2 p){
+    float d1 = Circle(p,vec2(.1,.1),.1);
+    float d2 = Circle(p, vec2(0.5,.1), .1);
+    float d3 = Circle(p, vec2(0.1,.9), .1);
+    float d4 = Circle(p, vec2(1.,.0), .1);
+    float d5 = Circle(p, vec2(0.8,.8), .1);
+    float d6 = Circle(p, vec2(1.,1.), .1); 
+    float d7 = Circle(p, vec2(0.2,.9), .1); 
+    float result = min(d1,d2);
+    result = min(result,d3);
+    result = min(result,d4);
+    result = min(result,d5);
+    result = min(result,d6);
+    result = min(result,d7);
+    return result;
+  }
+
+  float RayMarch(vec2 ro, vec2 rd){
+    float dO = 0.;
+  
+    for(int i = 0; i < MAX_STEPS; i++){
+      vec2 p = ro + rd * dO;
+      float dS = GetDist(p);
+      dO += dS;
+      if(dO > MAX_DIST || dS < SURF_DIST){
+        break;
+      }
+    }
+  
+    return dO;
+  }
+  
+  void main(){
+    vec2 uv = vTextureCoord;
+    vec3 col = vec3(0.);
+    vec2 ro = uPosition;
+    vec2 rd = normalize(uv - ro);
+
+    float d = RayMarch(ro,rd);
+    d = floor(d);
+
+    vec2 p = uv;
+    float d1 = drawCirlce(p, vec2(.1,.1),.1);
+    float d2 = drawCirlce(p, vec2(0.5,.1), .1);
+    float d3 = drawCirlce(p, vec2(.1,.9), .1);
+    float d4 = drawCirlce(p, vec2(1.,.0), .1);
+    float d5 = drawCirlce(p, vec2(0.8,.8), .1); 
+    float d6 = drawCirlce(p, vec2(1.,1.), .1); 
+    float d7 = drawCirlce(p, vec2(0.2,.9), .1); 
+    d = min(d1,d);
+    d = min(d2,d);
+    d = min(d3,d);
+    d = min(d4,d);
+    d = min(d5,d);
+    d = min(d6,d);
+    d = min(d7,d);
+    // d = 1. - d;
+    // d = d - 7. + (d1 + d2 + d3 + d4 + d5 + d6 + d7);
+
+    gl_FragColor = vec4(d,d,d,1.);
+  }
+`
