@@ -637,8 +637,8 @@ void main(){
 const rayTracing2D = `
   varying vec2 vTextureCoord;
 
-  #define MAX_STEPS 100
-  #define MAX_DIST 1.
+  #define MAX_STEPS 1000000
+  #define MAX_DIST 100.
   #define SURF_DIST .0001
 
   uniform sampler2D uSampler;
@@ -647,29 +647,87 @@ const rayTracing2D = `
   uniform vec2 uPosition;
   uniform vec4 filterArea;
 
-  float Circle(vec2 p, vec2 pos, float r){
-    return max(length(p - pos) - r,0.);
+  float smoothMin(float a, float b){
+    float k= .3;
+    float h = max(k - abs(a-b),0.)/k;
+    return min(a,b) - h*h*h*k * 1. / 6.;
   }
 
-  float drawCirlce(vec2 p, vec2 pos, float r){
+  float Circle(vec2 p, vec2 pos, float r){
+    return max(abs(length(p - pos)-r),0.);
+  }
+
+  float Box(vec2 p, vec2 pos, vec2 s){
+    return length(max(abs(p - pos) - s, 0.));
+  }
+
+  float Capsule(vec2 p, vec2 a, vec2 b, float r){
+    vec2 ab = b - a;
+    vec2 ap = p-a;
+    
+    float t = dot(ab, ap) / dot(ab,ab);
+    t = clamp(t, 0., 1.);
+  
+    vec2 c = a + t * ab;
+    float d = length(p - c) - r;
+    return d;
+  }
+
+
+  float Line(vec2 p, vec2 a, vec2 b){
+    vec2 ab = b - a;
+    vec2 ap = p - a;
+
+    float t = dot(ab,ap)/dot(ab,ab);
+    t = clamp(t,0.,1.);
+    vec2 c = a + t * ab;
+    float d = distance(p,c) - 0.001;
+    return d;
+  }
+
+  float drawBox(vec2 p, vec2 pos, vec2 s){
+    vec2 tlPos = pos - s;
+    vec2 brPos = vec2(1.) - s * 2. - tlPos;
+    vec2 tl = step(tlPos,p);
+    vec2 br = step(brPos, 1. - p);
+    return 1. - tl.x * tl.y * br.x * br.y;
+  }
+
+  float drawCircle(vec2 p, vec2 pos, float r){
     return step(r, length(p - pos));
   }
 
+  float drawLine(vec2 p, vec2 a, vec2 b){
+    float r = 0.;
+    
+    float d = distance(a, b);
+
+    float dp = distance(a, p);
+
+    r = 1.-floor(1.-0.001+distance(mix(a, b, clamp(dp/d, 0., 1.)),  p));
+        
+    return 1. - r;
+  }
+
+  float drawCapsule(vec2 p , vec2 a, vec2 b, float r){
+    float c1 = drawCircle(p, a, r);
+    float c2 = drawCircle(p, b, r);
+    float box = drawBox(p, (b + a)/2., vec2(r * 2., abs(b-a)));
+    return c1 * c2 * box;
+  }
+
   float GetDist(vec2 p){
-    float d1 = Circle(p,vec2(.1,.1),.1);
-    float d2 = Circle(p, vec2(0.5,.1), .1);
-    float d3 = Circle(p, vec2(0.1,.9), .1);
-    float d4 = Circle(p, vec2(1.,.0), .1);
-    float d5 = Circle(p, vec2(0.8,.8), .1);
-    float d6 = Circle(p, vec2(1.,1.), .1); 
-    float d7 = Circle(p, vec2(0.2,.9), .1); 
-    float result = min(d1,d2);
-    result = min(result,d3);
-    result = min(result,d4);
-    result = min(result,d5);
-    result = min(result,d6);
-    result = min(result,d7);
-    return result;
+    float d1 = Line(p, vec2(.8,.2), vec2(.6,.4));
+    float d2 = Line(p, vec2(.6,.4), vec2(.8,.4));
+    float d3 = Line(p, vec2(.8,.2), vec2(.8,.4));
+    float triangle1 = min(d1,min(d2,d3));
+
+
+    d1 = Circle(p, vec2(1. * (sin(uTime) + 1. )/ 2.,.2), .2);
+    d2 = Line(p, vec2(.6,.9), vec2(.601,.9));
+    float triangle2 = min(d1,d2);
+
+    return smoothMin(triangle1,triangle2);
   }
 
   float RayMarch(vec2 ro, vec2 rd){
@@ -691,29 +749,26 @@ const rayTracing2D = `
     vec2 uv = vTextureCoord;
     vec3 col = vec3(0.);
     vec2 ro = uPosition;
-    vec2 rd = normalize(uv - ro);
-
+    vec2 rd = uv - ro;
     float d = RayMarch(ro,rd);
-    d = floor(d);
-
     vec2 p = uv;
-    float d1 = drawCirlce(p, vec2(.1,.1),.1);
-    float d2 = drawCirlce(p, vec2(0.5,.1), .1);
-    float d3 = drawCirlce(p, vec2(.1,.9), .1);
-    float d4 = drawCirlce(p, vec2(1.,.0), .1);
-    float d5 = drawCirlce(p, vec2(0.8,.8), .1); 
-    float d6 = drawCirlce(p, vec2(1.,1.), .1); 
-    float d7 = drawCirlce(p, vec2(0.2,.9), .1); 
+    float d1 = drawLine(p, vec2(.8,.2), vec2(.6,.4));
+    float d2 = drawLine(p, vec2(.6,.4), vec2(.8,.4));
+    float d3 = drawLine(p, vec2(.8,.2), vec2(.8,.4));
     d = min(d1,d);
     d = min(d2,d);
     d = min(d3,d);
-    d = min(d4,d);
-    d = min(d5,d);
-    d = min(d6,d);
-    d = min(d7,d);
+
+    d1 = drawCircle(uv, vec2(1. * (sin(uTime) + 1. )/ 2.,.2), .2);
+    d1 = max(d1, 1. - drawCircle(uv,vec2(1. * (sin(uTime) + 1. )/ 2., .2),.195));
+    d2 = drawLine(p, vec2(.6,.9), vec2(.601,.9));
+    d = min(d1,min(d,d2));
+    d = d * (1. - length(uv-ro));
+    // if(d < (1. - length(uv - ro))){
+    //   d = 0.;
+    // }
     // d = 1. - d;
     // d = d - 7. + (d1 + d2 + d3 + d4 + d5 + d6 + d7);
-
     gl_FragColor = vec4(d,d,d,1.);
   }
 `
