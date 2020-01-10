@@ -52,9 +52,9 @@ Kultie.FilterSystem.SnowFilter = class extends Kultie.FilterSystem.FilterBase{
 
 Kultie.FilterSystem.TwistedFilter = class extends Kultie.FilterSystem.FilterBase{
   constructor(){
-    super(twistedShader,true,{
+    super(twistedShader,{
       uPosition: [0.,0.],
-      uRadius: .2,
+      uRadius: .5,
       uAngle: 1.,
       uTime: 0.
     })
@@ -162,7 +162,7 @@ scary.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT
 
 const noise = PIXI.Sprite.from('images/noise.png');
 
-let customFilter = new Kultie.FilterSystem.RayMarching();
+let customFilter = new Kultie.FilterSystem.TwistedFilter();
 app.stage.filterArea = app.renderer.screen;
 app.stage.filters = [customFilter];
 
