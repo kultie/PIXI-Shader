@@ -498,7 +498,7 @@ void main(){
 const rayMarching = `
 varying vec2 vTextureCoord;
 
-#define MAX_STEPS 100
+#define MAX_STEPS 500
 #define MAX_DIST 1000.
 #define SURF_DIST .01
 
@@ -508,100 +508,111 @@ uniform float uTime;
 uniform vec2 uPosition;
 uniform vec4 filterArea;
 
-float sdCapsule(vec3 p, vec3 a, vec3 b, float r){
-  vec3 ab = b - a;
-  vec3 ap = p-a;
-  
-  float t = dot(ab, ap) / dot(ab,ab);
-  t = clamp(t, 0., 1.);
-
-  vec3 c = a + t * ab;
-  float d = length(p - c) - r;
-  return d;
-}
-
-float sdCylinder(vec3 p, vec3 a, vec3 b, float r){
-  vec3 ab = b - a;
-  vec3 ap = p-a;
-  
-  float t = dot(ab, ap) / dot(ab,ab);
-
-  vec3 c = a + t * ab;
-  float x = length(p-c) - r;
-  float y = (abs(t - .5) - .5) * length(ab);
-  float e = length(max(vec2(x,y), 0.));
-  float i = min(max(x,y), 0.);
-  return e + i;
-}
-
-float sdTorus(vec3 p, vec2 r){
-  float x = length(p.xz) - r.x;
-  return length(vec2(x,p.y)) - r.y;
-}
-
-float sdBox(vec3 p, vec3 s){
-  return length(max(abs(p) - s, 0.));
-}
-
-float GetDist(vec3 p){
-  vec4 s = vec4(3.,1.,6.,1.);
-  float sphereDist = length(p - s.xyz) - s.w;
-  float planeDist = p.y;
-  float cd = sdCapsule(p, vec3(0.,1.,6.), vec3(0.,2.,6.), .5);
-  float td = sdTorus(p - vec3(0.,.5,6.),vec2(1.5,.5));
-  float tb = sdBox(p - vec3(-2., .5,2. * (sin(uTime) + 1.)), vec3(0.5,.5 * (cos(uTime) + 3.)/2.,.5));
-  float cyld = sdCylinder(p, vec3(1.,.5,3.), vec3(3.,.5,5.), .5);
-  float d = min (cd, planeDist);
-  d = min(d,td);
-  d = min(d, sphereDist);
-  d = min(d,tb);
-  d = min (d, cyld);
-  return d;
-}
-
-vec3 GetNormal(vec3 p){
-  float d = GetDist(p);
-  vec2 e = vec2(.01, 0.);
-  vec3 n = d - vec3(GetDist(p - e.xyy), GetDist(p - e.yxy), GetDist(p - e.yyx));
-  return normalize(n);
-}
-
-float RayMarch(vec3 ro, vec3 rd){
-  float dO = 0.;
-
-  for(int i = 0; i < MAX_STEPS; i++){
-    vec3 p = ro + rd * dO;
-    float dS = GetDist(p);
-    dO += dS;
-    if(dO > MAX_DIST || dS < SURF_DIST){
-      break;
-    }
-  }
-
-  return dO;
-}
-
-float GetLight(vec3 p){
-  vec3 lightPos = vec3(0.,5.,6.);
-
-  lightPos.xz += vec2(sin(uTime), cos(uTime)) * 2.;
-
-  vec3 l = normalize(lightPos - p);
-  vec3 n = GetNormal(p);
-  float dif = clamp(dot(n, l),0.,1.);
-  
-  float d = RayMarch(p + n * SURF_DIST * 2.,l);
-  if(d < length(lightPos - p)){
-    dif *= .1;
-  }
-
-  return dif;
-}
-
 mat2 Rot(float a) {
   float s = sin(a);
   float c = cos(a);
   return mat2(c, -s, s, c);
+}
+
+float smin( float a, float b, float k ) {
+  float h = clamp( 0.5+0.5*(b-a)/k, 0., 1. );
+  return mix( b, a, h ) - k*h*(1.0-h);
+}
+
+float sdCapsule(vec3 p, vec3 a, vec3 b, float r) {
+vec3 ab = b-a;
+  vec3 ap = p-a;
+  
+  float t = dot(ab, ap) / dot(ab, ab);
+  t = clamp(t, 0., 1.);
+  
+  vec3 c = a + t*ab;
+  
+  return length(p-c)-r;
+}
+
+float sdCylinder(vec3 p, vec3 a, vec3 b, float r) {
+vec3 ab = b-a;
+  vec3 ap = p-a;
+  
+  float t = dot(ab, ap) / dot(ab, ab);
+  t = clamp(t, 0., 1.);
+  
+  vec3 c = a + t*ab;
+  
+  float x = length(p-c)-r;
+  float y = (abs(t-.5)-.5)*length(ab);
+  float e = length(max(vec2(x, y), 0.));
+  float i = min(max(x, y), 0.);
+  
+  return e+i;
+}
+
+float sdTorus(vec3 p, vec2 r) {
+float x = length(p.xz)-r.x;
+  return length(vec2(x, p.y))-r.y;
+}
+
+float sdBox(vec3 p, vec3 s) {
+  p = abs(p)-s;
+return length(max(p, 0.))+min(max(p.x, max(p.y, p.z)), 0.);
+}
+
+
+float GetDist(vec3 p) {
+  float plane = dot(p,normalize(vec3(0.,1.,0.))) ;
+
+
+
+  vec3 bp = p - vec3(0,1,0);
+  float scale = mix(1.,3.,smoothstep(-1.,1.,bp.y));
+  
+  bp.xz *= scale;
+  bp.xz *= Rot(smoothstep(0.,1.,bp.y) + uTime);
+
+  // bp.z += sin(bp.x * 5. + uTime * 3.) * .1; //flag wave
+  float box = sdBox(bp, vec3(1.,1.,1.))/scale;
+  box -= sin(p.x * 7.5 + uTime * 3.) * .05; //displacement
+  box = abs(box) - 0.01;
+  float d = smin(plane, box * .3, .5);
+  return d;
+}
+
+float RayMarch(vec3 ro, vec3 rd) {
+float dO=0.;
+  
+  for(int i=0; i<MAX_STEPS; i++) {
+    vec3 p = ro + rd*dO;
+      float dS = GetDist(p);
+      dO += dS;
+      if(dO>MAX_DIST || abs(dS)<SURF_DIST) break;
+  }
+  
+  return dO;
+}
+
+vec3 GetNormal(vec3 p) {
+float d = GetDist(p);
+  vec2 e = vec2(.001, 0);
+  
+  vec3 n = d - vec3(
+      GetDist(p-e.xyy),
+      GetDist(p-e.yxy),
+      GetDist(p-e.yyx));
+  
+  return normalize(n);
+}
+
+float GetLight(vec3 p) {
+  vec3 lightPos = vec3(3, 5, 4);
+  vec3 l = normalize(lightPos-p);
+  vec3 n = GetNormal(p);
+  
+  float dif = clamp(dot(n, l)*.5+.5, 0., 1.);
+  float d = RayMarch(p+n*SURF_DIST*2., l);
+ // if(p.y<.01 && d<length(lightPos-p)) dif *= .5;
+  
+  return dif;
 }
 
 vec3 R(vec2 uv, vec3 p, vec3 l, float z) {
@@ -616,21 +627,26 @@ vec3 R(vec2 uv, vec3 p, vec3 l, float z) {
 
 void main(){
   vec2 uv = (gl_FragCoord.xy - .5 * filterArea.xy)/filterArea.y;
-  
-  vec3 col = vec3(0.);
-  vec4 result = texture2D(uSampler, vTextureCoord);
-  vec3 ro = vec3(0, 4, -5);
-  ro.yz *= Rot(-uPosition.y + .4);
-  ro.xz *= Rot(-uPosition.x * 6.2831);
-  vec3 rd = R(uv, ro, vec3(0,0,0), .7);
+  vec2 m = uPosition.xy;
+  vec3 col = vec3(0);
+    
+    vec3 ro = vec3(0, 4, -5);
+    ro.yz *= Rot(-m.y*3.14+1.);
+    ro.xz *= Rot(-m.x*6.2831);
+    // ro.y = clamp(ro.y,0.,10.);
+    
+    vec3 rd = R(uv, ro, vec3(0,1,0), 1.);
 
-  float d = RayMarch(ro,rd);
-  vec3 p = ro + rd * d;
-
-  float dif = GetLight(p);
-  col = vec3(dif);
-  
-  gl_FragColor = vec4(col,1.);
+    float d = RayMarch(ro, rd);
+    
+    if(d<MAX_DIST) {
+    	vec3 p = ro + rd * d;
+    
+    	float dif = GetLight(p);
+    	col = vec3(dif);
+    }
+    
+    gl_FragColor = vec4(col * vec3(mix(cos(uv.x + uTime),uv.y, sin(uTime)),1.,0.0), 1.0);
 }
 `
 
@@ -771,4 +787,25 @@ const rayTracing2D = `
     // d = d - 7. + (d1 + d2 + d3 + d4 + d5 + d6 + d7);
     gl_FragColor = vec4(d,d,d,1.);
   }
+`
+
+const testMultieTexture = `
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+uniform sampler2D u_tex_1;
+uniform sampler2D u_tex_2;
+
+uniform float uTime;
+
+void main(){
+  vec4 col1 = texture2D(uSampler,vTextureCoord);
+  vec4 col2 = texture2D(u_tex_1,vTextureCoord);
+  vec4 col3 = texture2D(u_tex_2,vTextureCoord);
+  vec4 col = vec4(1.,1.,1.,0.1);
+  float t = uTime * 5.;
+  float coff = abs(sin(t));
+  coff = (coff + 1.) / 2.;
+  coff /= 1.2;
+  gl_FragColor = col * coff * (1. - col1.a);
+}
 `

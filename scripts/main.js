@@ -128,7 +128,20 @@ Kultie.FilterSystem.NorctunalVision = class extends Kultie.FilterSystem.FilterBa
   }
 }
 
-Kultie.FilterSystem.RayMarching = class extends Kultie.FilterSystem.FilterBase{
+Kultie.FilterSystem.RayMarching3D = class extends Kultie.FilterSystem.FilterBase{
+  constructor(){
+    super(rayMarching,{
+      uTime: 0.,
+      uPosition: [0.,0.]
+    });
+  }
+
+  internalUpdate(dt){
+    this.uniforms.uPosition = this.getMousePosition();
+  }
+}
+
+Kultie.FilterSystem.RayMarching2D = class extends Kultie.FilterSystem.FilterBase{
   constructor(){
     super(rayTracing2D,{
       uTime: 0.,
@@ -138,6 +151,29 @@ Kultie.FilterSystem.RayMarching = class extends Kultie.FilterSystem.FilterBase{
 
   internalUpdate(dt){
     this.uniforms.uPosition = this.getMousePosition();
+  }
+}
+
+Kultie.FilterSystem.TestMultipleTexture = class extends Kultie.FilterSystem.FilterBase{
+  constructor(sprite1, sprite2){
+    const maskMatrix = new PIXI.Matrix();
+    sprite1.renderable = false;
+    sprite2.renderable = false;
+    super(testMultieTexture);
+
+    this.maskSprite = sprite1;
+    this.maskMatrix = maskMatrix;
+    sprite1.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+    sprite2.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+    this.uniforms.u_tex_1 = sprite1.texture;
+    this.uniforms.u_tex_2 = sprite2.texture;
+    this.uniforms.filterMatrix = maskMatrix;
+    this.uniforms.uTime = 0.;
+  }
+
+  apply(filterManager, input, output){
+    this.uniforms.filterMatrix = filterManager.calculateSpriteMatrix(this.maskMatrix,this.maskSprite);
+    filterManager.applyFilter(this,input,output);
   }
 }
 
@@ -152,18 +188,25 @@ fullScreen.width = app.screen.width;
 fullScreen.height = app.screen.height;
 
 
-const scary = PIXI.Sprite.from('images/cat.png');
-scary.width = app.screen.width;
-scary.height = app.screen.height;
-// cat.x = app.screen.width/2;
-// cat.y = app.screen.width/2;
-app.stage.addChild(scary);
-scary.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT
+const image = PIXI.Sprite.from('images/Panel.png');
+// image.width = app.screen.width;
+// image.height = app.screen.height;
+image.anchor.x = .5;
+image.anchor.y = .5;
+image.x = app.screen.width/2;
+image.y = app.screen.width/2;
+image.scale.x = 3.;
+image.scale.y = 3.;
+app.stage.addChild(image);
 
 const noise = PIXI.Sprite.from('images/noise.png');
+app.stage.addChild(noise);
+const disp = PIXI.Sprite.from('images/Displacements.png');
+app.stage.addChild(disp);
 
-let customFilter = new Kultie.FilterSystem.TwistedFilter();
-app.stage.filterArea = app.renderer.screen;
+let customFilter = new Kultie.FilterSystem.RayMarching3D(noise,disp);
+// image.filterArea = app.renderer.screen;
+customFilter.padding = 0.;
 app.stage.filters = [customFilter];
 
 app.ticker.add((delta) =>{  
