@@ -558,6 +558,10 @@ float sdBox(vec3 p, vec3 s) {
 return length(max(p, 0.))+min(max(p.x, max(p.y, p.z)), 0.);
 }
 
+float sdSphere(vec3 p, vec3 s, float r){
+  return length(p - s) - r;
+}
+
 
 float GetDist(vec3 p) {
   float plane = dot(p,normalize(vec3(0.,1.,0.))) ;
@@ -565,16 +569,18 @@ float GetDist(vec3 p) {
 
 
   vec3 bp = p - vec3(0,1,0);
-  float scale = mix(1.,3.,smoothstep(-1.,1.,bp.y));
-  
-  bp.xz *= scale;
-  bp.xz *= Rot(smoothstep(0.,1.,bp.y) + uTime);
 
   // bp.z += sin(bp.x * 5. + uTime * 3.) * .1; //flag wave
-  float box = sdBox(bp, vec3(1.,1.,1.))/scale;
-  box -= sin(p.x * 7.5 + uTime * 3.) * .05; //displacement
-  box = abs(box) - 0.01;
-  float d = smin(plane, box * .3, .5);
+  float sphere = sdSphere(bp, vec3(0.,.75,0.),1.5);
+  float box = sdBox(bp, vec3(1.,1.,1.));
+  bp.xy *= Rot(.75);
+  float box2 = sdCapsule(bp, vec3(0.,0.1,0.), vec3(0.,2.5,0.),.5);
+  bp.xy *= Rot(-1.5);
+  // float box3 = sdCapsule(bp,vec3(0.,0.1,0.), vec3(0.,1.5,0.),.75);
+  // box2 -= sin(p.y * 7.5 + uTime * 3.) * .05; //displacement
+  // box3 -= sin(p.x * 5. + uTime * 5.) * .05; //displacement
+  sphere -= cos(p.x * 2. + uTime * 1. * sin(uTime)) * .5;
+  float d = min(plane, sphere);
   return d;
 }
 

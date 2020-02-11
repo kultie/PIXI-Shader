@@ -209,6 +209,44 @@ let customFilter = new Kultie.FilterSystem.RayMarching3D(noise,disp);
 customFilter.padding = 0.;
 app.stage.filters = [customFilter];
 
+const sequence = new Kultie.BT_Composite_Sequence("Check number",
+  [
+  Kultie.BT_Action.createAction("Generate number",
+    (subject, context)=>{
+      console.log("Target number is: " + context.targetNumber);
+    },
+    (subject, context)=>{
+      let number = Math.floor(Math.random() * 10);
+      context.currentNumber = number;
+      subject._status = 'success';
+      return 'success';
+    },
+    (subject, context)=>{
+      console.log("Status: " + subject._status);
+      console.log("Current number: " + context.currentNumber);
+    }),
+  Kultie.BT_Action.createAction("Check number",
+    (subject, context)=>{
+      console.log("Target number is: " + context.targetNumber + " Current number " + context.currentNumber);
+    },
+    (subject,context)=>{
+      if(context.currentNumber == context.targetNumber){
+        subject._status = 'success';
+      }
+      else{
+        subject._status = 'fail';  
+      }
+      console.log(subject._status);
+      return subject._status;
+    }
+  )
+  ]);
+
+let context = {targetNumber: 0};
+
+const tree = new Kultie.BT_Root(sequence);
+
 app.ticker.add((delta) =>{  
+  tree.update(0.0167,context);
     customFilter.update(0.0167);
 })
