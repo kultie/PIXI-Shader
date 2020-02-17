@@ -177,6 +177,26 @@ Kultie.FilterSystem.TestMultipleTexture = class extends Kultie.FilterSystem.Filt
   }
 }
 
+Kultie.FilterSystem.DisolveFilter = class extends Kultie.FilterSystem.FilterBase{
+  constructor(sprite){
+    const maskMatrix = new PIXI.Matrix();
+    sprite.renderable = false;
+    super(dissolveShader);
+
+    this.maskSprite = sprite;
+    this.maskMatrix = maskMatrix;
+    sprite.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+    this.uniforms.mapSampler = sprite.texture;
+    this.uniforms.filterMatrix = maskMatrix;
+    this.uniforms.uTime = 0.;
+  }
+
+  apply(filterManager, input, output){
+    this.uniforms.filterMatrix = filterManager.calculateSpriteMatrix(this.maskMatrix,this.maskSprite);
+    filterManager.applyFilter(this,input,output);
+  }
+}
+
 const app = new PIXI.Application({
   width: 600,
   height: 600
@@ -188,7 +208,7 @@ fullScreen.width = app.screen.width;
 fullScreen.height = app.screen.height;
 
 
-const image = PIXI.Sprite.from('images/Panel.png');
+const image = PIXI.Sprite.from('images/cat.png');
 // image.width = app.screen.width;
 // image.height = app.screen.height;
 image.anchor.x = .5;
@@ -202,51 +222,13 @@ app.stage.addChild(image);
 const noise = PIXI.Sprite.from('images/noise.png');
 app.stage.addChild(noise);
 const disp = PIXI.Sprite.from('images/Displacements.png');
-app.stage.addChild(disp);
+// app.stage.addChild(disp);
 
-let customFilter = new Kultie.FilterSystem.RayMarching3D(noise,disp);
+let customFilter = new Kultie.FilterSystem.DisolveFilter(noise);
 // image.filterArea = app.renderer.screen;
 customFilter.padding = 0.;
 app.stage.filters = [customFilter];
 
-const sequence = new Kultie.BT_Composite_Sequence("Check number",
-  [
-  Kultie.BT_Action.createAction("Generate number",
-    (subject, context)=>{
-      console.log("Target number is: " + context.targetNumber);
-    },
-    (subject, context)=>{
-      let number = Math.floor(Math.random() * 10);
-      context.currentNumber = number;
-      subject._status = 'success';
-      return 'success';
-    },
-    (subject, context)=>{
-      console.log("Status: " + subject._status);
-      console.log("Current number: " + context.currentNumber);
-    }),
-  Kultie.BT_Action.createAction("Check number",
-    (subject, context)=>{
-      console.log("Target number is: " + context.targetNumber + " Current number " + context.currentNumber);
-    },
-    (subject,context)=>{
-      if(context.currentNumber == context.targetNumber){
-        subject._status = 'success';
-      }
-      else{
-        subject._status = 'fail';  
-      }
-      console.log(subject._status);
-      return subject._status;
-    }
-  )
-  ]);
-
-let context = {targetNumber: 0};
-
-const tree = new Kultie.BT_Root(sequence);
-
 app.ticker.add((delta) =>{  
-  tree.update(0.0167,context);
     customFilter.update(0.0167);
 })

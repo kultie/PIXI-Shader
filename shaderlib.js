@@ -1,4 +1,4 @@
-const templateShaderCode =`
+const templateShaderCode = `
 const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -32,7 +32,6 @@ void main(){
     uv = vTextureCoord;
     gl_FragColor = vec4(vec3(1.0),1.0);
 }`;
-
 
 const customShader = `
 varying vec2 vTextureCoord;
@@ -87,7 +86,7 @@ uniform float uTime;
 void main(){
   gl_FragColor = texture2D(uSampler, vTextureCoord);
   gl_FragColor.rgb  = 1.0 - gl_FragColor.rgb;
-}`
+}`;
 
 //https://www.shadertoy.com/view/3lBSR3
 const pixelateShader = `
@@ -101,7 +100,7 @@ void main(){
   vec2 c = mix(iResolution.xy, vec2(4), amount);
   uv = floor(uv * c) / c;
   gl_FragColor = texture2D(uSampler, uv);
-}`
+}`;
 
 //https://www.shadertoy.com/view/XsGBzW
 const shinyShader = `
@@ -116,7 +115,7 @@ void main() {
   vec4 text = texture2D(uSampler, r);
   gl_FragColor = text + vec4(col);
 }
-`
+`;
 
 const silexarsShader = `
 varying vec2 vTextureCoord;
@@ -137,7 +136,7 @@ void main() {
   vec4 newCol = vec4(wave_color,1.);
   vec4 text = texture2D(uSampler, vTextureCoord);
   gl_FragColor = newCol;
-}`
+}`;
 
 //https://www.shadertoy.com/view/XsXXDn
 const silexars2Shader = `
@@ -163,7 +162,7 @@ void main() {
 `;
 
 //https://www.shadertoy.com/view/Mds3zn
-const chromaticVibrationShader =`
+const chromaticVibrationShader = `
 precision mediump float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -330,7 +329,7 @@ void main() {
 }
 `;
 
-const twistedShader =`
+const twistedShader = `
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
 
@@ -361,7 +360,7 @@ void main(void)
 }
 `;
 
-const shockwaveShader =`
+const shockwaveShader = `
 const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -399,8 +398,7 @@ void main()
   gl_FragColor = vec4(col,1.0);
 }`;
 
-const transitionShader=
-`
+const transitionShader = `
 const float PI = 3.1415926535;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -453,7 +451,7 @@ void main(){
   vec4 disp = texture2D(mapSampler, vTextureCoord);
   gl_FragColor = texture2D(uSampler,vTextureCoord + displacement(disp.xy, 0.05));
 }
-`
+`;
 
 const nocturnalVision = `
 varying vec2 vTextureCoord;
@@ -493,7 +491,7 @@ void main(){
   result = mix(tex,tex2,col.a);
   gl_FragColor = result;
 }
-`
+`;
 
 const rayMarching = `
 varying vec2 vTextureCoord;
@@ -654,7 +652,7 @@ void main(){
     
     gl_FragColor = vec4(col * vec3(mix(cos(uv.x + uTime),uv.y, sin(uTime)),1.,0.0), 1.0);
 }
-`
+`;
 
 const rayTracing2D = `
   varying vec2 vTextureCoord;
@@ -793,7 +791,7 @@ const rayTracing2D = `
     // d = d - 7. + (d1 + d2 + d3 + d4 + d5 + d6 + d7);
     gl_FragColor = vec4(d,d,d,1.);
   }
-`
+`;
 
 const testMultieTexture = `
 varying vec2 vTextureCoord;
@@ -814,4 +812,30 @@ void main(){
   coff /= 1.2;
   gl_FragColor = col * coff * (1. - col1.a);
 }
-`
+`;
+const dissolveShader = `
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+uniform sampler2D mapSampler;
+
+uniform float uTime;
+
+void main(){
+  vec4 mainTex = texture2D(uSampler,vTextureCoord);
+  vec4 noise = texture2D(mapSampler,vTextureCoord);
+  float fade = sin((uTime + 1.) /2.);
+  float dissolveValue = step(noise.r, fade);
+  mainTex.a *= dissolveValue;
+
+  float outline = fade - 0.01;
+  float outlineColor = step(noise.r, outline);
+  dissolveValue = dissolveValue - outlineColor;
+  float alpha = mainTex.a * dissolveValue;
+  vec3 color = vec3(0.,1.,0.);
+  color = color * alpha;
+  
+  mainTex.rgb = mainTex.rgb + color;
+
+  gl_FragColor = mainTex * mainTex.a;
+}
+`;
